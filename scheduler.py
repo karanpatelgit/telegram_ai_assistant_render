@@ -1,117 +1,318 @@
-import sqlite3
+import threading
+import time
+import schedule
+import asyncio
+import os
 
-# =========================
-# DATABASE CONNECTION
-# =========================
+from datetime import datetime
+from dotenv import load_dotenv
 
-conn = sqlite3.connect(
-    "assistant.db",
-    check_same_thread=False
+from telegram import Bot
+from telegram.ext import (
+    Application,
+    CommandHandler
 )
 
-cursor = conn.cursor()
-
-# =========================
-# TASKS TABLE
-# =========================
-
-cursor.execute("""
-
-CREATE TABLE IF NOT EXISTS tasks (
-
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    task TEXT,
-
-    task_time TEXT,
-
-    status TEXT
+from database import (
+    add_task,
+    get_tasks,
+    complete_task,
+    add_note,
+    get_notes
 )
 
-""")
-
 # =========================
-# NOTES TABLE
+# LOAD ENV
 # =========================
 
-cursor.execute("""
+load_dotenv()
 
-CREATE TABLE IF NOT EXISTS notes (
-
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    note TEXT
+TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN"
 )
 
-""")
+CHAT_ID = os.getenv(
+    "CHAT_ID"
+)
 
-conn.commit()
+# =========================
+# TELEGRAM SETUP
+# =========================
+
+bot = Bot(token=TOKEN)
+
+app = Application.builder().token(TOKEN).build()
+
+# =========================
+# START COMMAND
+# =========================
+
+async def start(update, context):
+
+    await update.message.reply_text(
+        "🤖 AI Assistant Running"
+    )
+
+# =========================
+# TODAY COMMAND
+# =========================
+
+async def today(update, context):
+
+    tasks = get_tasks()
+
+    if not tasks:
+
+        await update.message.reply_text(
+            "🎉 No Tasks"
+        )
+
+        return
+
+    msg = "📅 Today's Tasks\n\n"
+
+    for task in tasks:
+
+        msg += (
+            f"ID: {task[0]}\n"
+            f"Task: {task[1]}\n"
+            f"Time: {task[2]}\n"
+            f"Status: {task[3]}\n\n"
+        )
+
+    await update.message.reply_text(msg)
 
 # =========================
 # ADD TASK
 # =========================
 
-def add_task(task, task_time):
+async def add(update, context):
 
-    cursor.execute(
+    try:
 
-        "INSERT INTO tasks (task, task_time, status) VALUES (?, ?, ?)",
+        text = update.message.text.replace(
+            "/add ",
+            ""
+        )
 
-        (task, task_time, "Pending")
-    )
+        parts = text.split(",")
 
-    conn.commit()
+        task = parts[0].strip()
 
-# =========================
-# GET TASKS
-# =========================
+        time_value = parts[1].strip()
 
-def get_tasks():
+        add_task(task, time_value)
 
-    cursor.execute(
-        "SELECT * FROM tasks"
-    )
+        await update.message.reply_text(
+            f"✅ Task Added\n\n"
+            f"Task: {task}\n"
+            f"Time: {time_value}"
+        )
 
-    return cursor.fetchall()
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Wrong Format\n\n"
+            "Use:\n"
+            "/add Task Name, HH:MM"
+        )
 
 # =========================
 # COMPLETE TASK
 # =========================
 
-def complete_task(task_id):
+async def done(update, context):
 
-    cursor.execute(
+    try:
 
-        "UPDATE tasks SET status='Done' WHERE id=?",
+        task_id = int(
+            update.message.text.replace(
+                "/done ",
+                ""
+            )
+        )
 
-        (task_id,)
+        complete_task(task_id)
+
+        await update.message.reply_text(
+            f"✅ Task {task_id} Completed"
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Wrong Format\n\n"
+            "Use:\n"
+            "/done TASK_ID"
+        )
+
+# =========================
+# SAVE NOTE
+# =========================
+
+async def note(update, context):
+
+    text = update.message.text.replace(
+        "/note ",
+        ""
     )
 
-    conn.commit()
+    add_note(text)
 
-# =========================
-# ADD NOTE
-# =========================
-
-def add_note(note):
-
-    cursor.execute(
-
-        "INSERT INTO notes (note) VALUES (?)",
-
-        (note,)
+    await update.message.reply_text(
+        "📝 Note Saved"
     )
 
-    conn.commit()
-
 # =========================
-# GET NOTES
+# SHOW NOTES
 # =========================
 
-def get_notes():
+async def notes(update, context):
 
-    cursor.execute(
-        "SELECT * FROM notes"
+    all_notes = get_notes()
+
+    if not all_notes:
+
+        await update.message.reply_text(
+            "No Notes"
+        )
+
+        return
+
+    msg = "📝 Stored Notes\n\n"
+
+    for item in all_notes:
+
+        msg += (
+            f"{item[0]}. "
+            f"{item[1]}\n\n"
+        )
+
+    await update.message.reply_text(msg)
+
+# =========================
+# HANDLERS
+# =========================
+
+app.add_handler(
+    CommandHandler("start", start)
+)
+
+app.add_handler(
+    CommandHandler("today", today)
+)
+
+app.add_handler(
+    CommandHandler("add", add)
+)
+
+app.add_handler(
+    CommandHandler("done", done)
+)
+
+app.add_handler(
+    CommandHandler("note", note)
+)
+
+app.add_handler(
+    CommandHandler("notes", notes)
+)
+
+# =========================
+# REMINDER ENGINE
+# =========================
+
+def check_tasks():
+
+    now = datetime.now().strftime(
+        "%H:%M"
     )
 
-    return cursor.fetchall()
+    tasks = get_tasks()
+
+    for task in tasks:
+
+        task_id = task[0]
+
+        task_name = task[1]
+
+        task_time = task[2]
+
+        status = task[3]
+
+        if (
+            task_time == now and
+            status != "Done"
+        ):
+
+            message = (
+                f"⏰ Reminder\n\n"
+                f"Task: {task_name}\n"
+                f"ID: {task_id}\n\n"
+                f"Complete using:\n"
+                f"/done {task_id}"
+            )
+
+            try:
+
+                asyncio.run(
+                    bot.send_message(
+                        chat_id=CHAT_ID,
+                        text=message
+                    )
+                )
+
+                print(
+                    f"✅ Reminder Sent: {task_name}"
+                )
+
+            except Exception as e:
+
+                print(
+                    "Reminder Error:",
+                    e
+                )
+
+# =========================
+# SCHEDULER
+# =========================
+
+schedule.every(30).seconds.do(
+    check_tasks
+)
+
+# =========================
+# SCHEDULER THREAD
+# =========================
+
+def run_scheduler():
+
+    while True:
+
+        schedule.run_pending()
+
+        time.sleep(5)
+
+# =========================
+# START THREAD
+# =========================
+
+scheduler_thread = threading.Thread(
+    target=run_scheduler
+)
+
+scheduler_thread.daemon = True
+
+scheduler_thread.start()
+
+# =========================
+# RUN BOT
+# =========================
+
+print("🚀 AI Assistant Running")
+
+app.run_polling()
