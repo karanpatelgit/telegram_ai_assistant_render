@@ -164,7 +164,7 @@ async def done(update, context):
 
 async def note(update, context):
 
-```
+
 text = update.message.text.replace(
     "/note ",
     ""
@@ -175,7 +175,7 @@ add_note(text)
 await update.message.reply_text(
     "📝 Note Saved"
 )
-```
+
 
 # =========================
 
@@ -185,7 +185,7 @@ await update.message.reply_text(
 
 async def notes(update, context):
 
-```
+
 all_notes = get_notes()
 
 if not all_notes:
@@ -203,7 +203,7 @@ for note in all_notes:
     msg += f"{note[0]}. {note[1]}\n\n"
 
 await update.message.reply_text(msg)
-```
+
 
 # =========================
 # HANDLERS
@@ -242,7 +242,7 @@ import asyncio
 
 def check_tasks():
 
-```
+
 now = datetime.now().strftime(
     "%H:%M"
 )
