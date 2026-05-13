@@ -12,7 +12,7 @@ conn = sqlite3.connect(
 cursor = conn.cursor()
 
 # =========================
-# TASKS TABLE
+# CREATE TASKS TABLE
 # =========================
 
 cursor.execute("""
@@ -20,6 +20,8 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS tasks (
 
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    task_date TEXT,
 
     task TEXT,
 
@@ -30,25 +32,8 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 """)
 
-
 # =========================
-# ADD DATE COLUMN
-# =========================
-
-try:
-
-    cursor.execute(
-        "ALTER TABLE tasks ADD COLUMN task_date TEXT"
-    )
-
-    conn.commit()
-
-except:
-    pass
-
-
-# =========================
-# NOTES TABLE
+# CREATE NOTES TABLE
 # =========================
 
 cursor.execute("""
@@ -96,7 +81,19 @@ def add_task(task_date, task, task_time):
 def get_tasks():
 
     cursor.execute(
-        "SELECT * FROM tasks"
+
+        """
+        SELECT
+        id,
+        task_date,
+        task,
+        task_time,
+        status
+
+        FROM tasks
+
+        ORDER BY task_date, task_time
+        """
     )
 
     return cursor.fetchall()
@@ -109,9 +106,18 @@ def complete_task(task_id):
 
     cursor.execute(
 
-        "UPDATE tasks SET status='Done' WHERE id=?",
+        """
+        UPDATE tasks
 
-        (task_id,)
+        SET status = ?
+
+        WHERE id = ?
+        """,
+
+        (
+            "Done",
+            task_id
+        )
     )
 
     conn.commit()
@@ -124,7 +130,11 @@ def add_note(note):
 
     cursor.execute(
 
-        "INSERT INTO notes (note) VALUES (?)",
+        """
+        INSERT INTO notes (note)
+
+        VALUES (?)
+        """,
 
         (note,)
     )
@@ -138,7 +148,12 @@ def add_note(note):
 def get_notes():
 
     cursor.execute(
-        "SELECT * FROM notes"
+
+        """
+        SELECT *
+        FROM notes
+        ORDER BY id DESC
+        """
     )
 
     return cursor.fetchall()
