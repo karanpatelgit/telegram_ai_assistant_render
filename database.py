@@ -1,52 +1,46 @@
 import sqlite3
 
+# =========================
+# DATABASE CONNECTION
+# =========================
+
 conn = sqlite3.connect(
-"assistant.db",
-check_same_thread=False
+    "assistant.db",
+    check_same_thread=False
 )
 
 cursor = conn.cursor()
 
 # =========================
-
 # TASKS TABLE
-
 # =========================
 
 cursor.execute("""
 
 CREATE TABLE IF NOT EXISTS tasks (
 
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task TEXT,
 
-task TEXT,
+    task_time TEXT,
 
-task_time TEXT,
-
-status TEXT
-
-
+    status TEXT
 )
 
 """)
 
 # =========================
-
 # NOTES TABLE
-
 # =========================
 
 cursor.execute("""
 
 CREATE TABLE IF NOT EXISTS notes (
 
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-note TEXT
-
-
+    note TEXT
 )
 
 """)
@@ -54,74 +48,70 @@ note TEXT
 conn.commit()
 
 # =========================
-
-# TASK FUNCTIONS
-
+# ADD TASK
 # =========================
 
 def add_task(task, task_time):
 
+    cursor.execute(
 
-cursor.execute(
+        "INSERT INTO tasks (task, task_time, status) VALUES (?, ?, ?)",
 
-    "INSERT INTO tasks (task, task_time, status) VALUES (?, ?, ?)",
+        (task, task_time, "Pending")
+    )
 
-    (task, task_time, "Pending")
-)
+    conn.commit()
 
-conn.commit()
-
+# =========================
+# GET TASKS
+# =========================
 
 def get_tasks():
 
+    cursor.execute(
+        "SELECT * FROM tasks"
+    )
 
-cursor.execute(
+    return cursor.fetchall()
 
-    "SELECT * FROM tasks"
-)
-
-return cursor.fetchall()
-
+# =========================
+# COMPLETE TASK
+# =========================
 
 def complete_task(task_id):
 
+    cursor.execute(
 
-cursor.execute(
+        "UPDATE tasks SET status='Done' WHERE id=?",
 
-    "UPDATE tasks SET status='Done' WHERE id=?",
+        (task_id,)
+    )
 
-    (task_id,)
-)
-
-conn.commit()
-
+    conn.commit()
 
 # =========================
-
-# NOTES FUNCTIONS
-
+# ADD NOTE
 # =========================
 
 def add_note(note):
 
+    cursor.execute(
 
-cursor.execute(
+        "INSERT INTO notes (note) VALUES (?)",
 
-    "INSERT INTO notes (note) VALUES (?)",
+        (note,)
+    )
 
-    (note,)
-)
+    conn.commit()
 
-conn.commit()
-
+# =========================
+# GET NOTES
+# =========================
 
 def get_notes():
 
+    cursor.execute(
+        "SELECT * FROM notes"
+    )
 
-cursor.execute(
-
-    "SELECT * FROM notes"
-)
-
-return cursor.fetchall()
-```
+    return cursor.fetchall()
