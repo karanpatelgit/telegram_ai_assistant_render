@@ -297,10 +297,14 @@ app.add_handler(
 # REMINDER ENGINE
 # =========================
 
-def check_tasks():
+async def check_tasks():
+
+    now = datetime.now().strftime(
+        "%H:%M"
+    )
 
     today_date = datetime.now().strftime(
-    "%Y-%m-%d"
+        "%Y-%m-%d"
     )
 
     tasks = get_tasks()
@@ -312,39 +316,46 @@ def check_tasks():
         task_date = task[1]
 
         task_name = task[2]
-        
+
         task_time = task[3]
-        
+
         status = task[4]
 
         if (
 
             task_date == today_date
-        
+
             and
-        
+
             task_time == now
-        
+
             and
-        
+
             status != "Done"
         ):
 
             message = (
+
                 f"⏰ Reminder\n\n"
-                f"Task: {task_name}\n"
-                f"ID: {task_id}\n\n"
+
+                f"📅 Date: {task_date}\n"
+
+                f"📝 Task: {task_name}\n"
+
+                f"🆔 ID: {task_id}\n\n"
+
                 f"Complete using:\n"
+
                 f"/done {task_id}"
             )
 
             try:
 
-                asyncio.run(
-                    bot.send_message(
-                        chat_id=CHAT_ID,
-                        text=message
-                    )
+                await bot.send_message(
+
+                    chat_id=CHAT_ID,
+
+                    text=message
                 )
 
                 print(
@@ -357,43 +368,34 @@ def check_tasks():
                     "Reminder Error:",
                     e
                 )
-
 # =========================
 # SCHEDULER
 # =========================
 
-schedule.every(30).seconds.do(
-    check_tasks
-)
-
-# =========================
-# SCHEDULER THREAD
-# =========================
-
-def run_scheduler():
+async def scheduler_loop():
 
     while True:
 
-        schedule.run_pending()
+        await check_tasks()
 
-        time.sleep(5)
+        await asyncio.sleep(30)
 
-# =========================
-# START THREAD
-# =========================
+async def main():
 
-scheduler_thread = threading.Thread(
-    target=run_scheduler
-)
+    print("🚀 AI Assistant Running")
 
-scheduler_thread.daemon = True
+    asyncio.create_task(
+        scheduler_loop()
+    )
 
-scheduler_thread.start()
+    await app.initialize()
 
-# =========================
-# RUN BOT
-# =========================
+    await app.start()
 
-print("🚀 AI Assistant Running")
+    await app.updater.start_polling()
 
-app.run_polling()
+    while True:
+
+        await asyncio.sleep(3600)
+
+asyncio.run(main())
