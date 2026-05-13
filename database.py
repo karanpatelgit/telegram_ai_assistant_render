@@ -17,7 +17,7 @@ cursor.execute("""
 
 CREATE TABLE IF NOT EXISTS tasks (
 
-```
+
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 task TEXT,
@@ -25,7 +25,7 @@ task TEXT,
 task_time TEXT,
 
 status TEXT
-```
+
 
 )
 
@@ -41,11 +41,11 @@ cursor.execute("""
 
 CREATE TABLE IF NOT EXISTS notes (
 
-```
+
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 note TEXT
-```
+
 
 )
 
@@ -61,7 +61,7 @@ conn.commit()
 
 def add_task(task, task_time):
 
-```
+
 cursor.execute(
 
     "INSERT INTO tasks (task, task_time, status) VALUES (?, ?, ?)",
@@ -70,22 +70,22 @@ cursor.execute(
 )
 
 conn.commit()
-```
+
 
 def get_tasks():
 
-```
+
 cursor.execute(
 
     "SELECT * FROM tasks"
 )
 
 return cursor.fetchall()
-```
+
 
 def complete_task(task_id):
 
-```
+
 cursor.execute(
 
     "UPDATE tasks SET status='Done' WHERE id=?",
@@ -94,7 +94,7 @@ cursor.execute(
 )
 
 conn.commit()
-```
+
 
 # =========================
 
@@ -104,7 +104,7 @@ conn.commit()
 
 def add_note(note):
 
-```
+
 cursor.execute(
 
     "INSERT INTO notes (note) VALUES (?)",
@@ -113,11 +113,11 @@ cursor.execute(
 )
 
 conn.commit()
-```
+
 
 def get_notes():
 
-```
+
 cursor.execute(
 
     "SELECT * FROM notes"
