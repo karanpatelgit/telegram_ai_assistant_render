@@ -74,11 +74,11 @@ async def today(update, context):
     for task in tasks:
 
         msg += (
-            f"ID: {task[0]}\n"
-            f"Task: {task[1]}\n"
-            f"Time: {task[2]}\n"
-            f"Status: {task[3]}\n\n"
-        )
+            f"Date: {task[1]}\n"
+            f"Task: {task[2]}\n"
+            f"Time: {task[3]}\n"
+            f"Status: {task[4]}\n\n"
+            )
 
     await update.message.reply_text(msg)
 
@@ -97,16 +97,27 @@ async def add(update, context):
 
         parts = text.split(",")
 
-        task = parts[0].strip()
+        task_date = parts[0].strip()
 
-        time_value = parts[1].strip()
+        task = parts[1].strip()
 
-        add_task(task, time_value)
+        task_time = parts[2].strip()
+
+        add_task(
+            task_date,
+            task,
+            task_time
+        )
 
         await update.message.reply_text(
+
             f"✅ Task Added\n\n"
-            f"Task: {task}\n"
-            f"Time: {time_value}"
+
+            f"📅 Date: {task_date}\n"
+
+            f"📝 Task: {task}\n"
+
+            f"⏰ Time: {task_time}"
         )
 
     except Exception as e:
@@ -114,11 +125,13 @@ async def add(update, context):
         print(e)
 
         await update.message.reply_text(
-            "❌ Wrong Format\n\n"
-            "Use:\n"
-            "/add Task Name, HH:MM"
-        )
 
+            "❌ Wrong Format\n\n"
+
+            "Use:\n"
+
+            "/add 2026-05-20, Study, 18:00"
+        )
 # =========================
 # COMPLETE TASK
 # =========================
@@ -277,14 +290,17 @@ app.add_handler(
     CommandHandler("notes", notes)
 )
 
+app.add_handler(
+    CommandHandler("bulkadd", bulkadd)
+)
 # =========================
 # REMINDER ENGINE
 # =========================
 
 def check_tasks():
 
-    now = datetime.now().strftime(
-        "%H:%M"
+    today_date = datetime.now().strftime(
+    "%Y-%m-%d"
     )
 
     tasks = get_tasks()
@@ -293,11 +309,13 @@ def check_tasks():
 
         task_id = task[0]
 
-        task_name = task[1]
+        task_date = task[1]
 
-        task_time = task[2]
-
-        status = task[3]
+        task_name = task[2]
+        
+        task_time = task[3]
+        
+        status = task[4]
 
         if (
             task_time == now and
