@@ -205,6 +205,7 @@ for note in all_notes:
 await update.message.reply_text(msg)
 
 
+
 # =========================
 # HANDLERS
 # =========================
