@@ -3,6 +3,14 @@ import time
 import schedule
 import asyncio
 
+from database import (
+add_task,
+get_tasks,
+complete_task,
+add_note,
+get_notes
+)
+
 from datetime import datetime
 
 from telegram import Bot
@@ -148,6 +156,54 @@ async def done(update, context):
             "Use:\n"
             "/done TASK_ID"
         )
+# =========================
+
+# SAVE NOTE
+
+# =========================
+
+async def note(update, context):
+
+```
+text = update.message.text.replace(
+    "/note ",
+    ""
+)
+
+add_note(text)
+
+await update.message.reply_text(
+    "📝 Note Saved"
+)
+```
+
+# =========================
+
+# SHOW NOTES
+
+# =========================
+
+async def notes(update, context):
+
+```
+all_notes = get_notes()
+
+if not all_notes:
+
+    await update.message.reply_text(
+        "No Notes"
+    )
+
+    return
+
+msg = "📝 Stored Notes\n\n"
+
+for note in all_notes:
+
+    msg += f"{note[0]}. {note[1]}\n\n"
+
+await update.message.reply_text(msg)
+```
 
 # =========================
 # HANDLERS
@@ -168,61 +224,82 @@ app.add_handler(
 app.add_handler(
     CommandHandler("done", done)
 )
+app.add_handler(
+CommandHandler("note", note)
+)
+
+app.add_handler(
+CommandHandler("notes", notes)
+)
 
 # =========================
+
 # REMINDER ENGINE
+
 # =========================
+
+import asyncio
 
 def check_tasks():
 
-    now = datetime.now().strftime(
-        "%H:%M"
-    )
+```
+now = datetime.now().strftime(
+    "%H:%M"
+)
 
-    tasks = get_tasks()
+tasks = get_tasks()
 
-    for task in tasks:
+for task in tasks:
 
-        task_id = task[0]
+    task_id = task[0]
 
-        task_name = task[1]
+    task_name = task[1]
 
-        task_time = task[2]
+    task_time = task[2]
 
-        status = task[3]
+    status = task[3]
 
-        if (
-            task_time == now and
-            status != "Done"
-        ):
+    if (
 
-            message = (
-                f"⏰ Reminder\n\n"
-                f"Task: {task_name}\n"
-                f"ID: {task_id}\n\n"
-                f"After completion send:\n"
-                f"/done {task_id}"
+        task_time == now and
+        status != "Done"
+    ):
+
+        message = (
+
+            f"⏰ Reminder\n\n"
+            f"Task: {task_name}\n"
+            f"ID: {task_id}\n\n"
+            f"Complete using:\n"
+            f"/done {task_id}"
+        )
+
+        try:
+
+            asyncio.run(
+
+                bot.send_message(
+                    chat_id=CHAT_ID,
+                    text=message
+                )
             )
 
-            try:
+            print(
+                f"✅ Reminder Sent: {task_name}"
+            )
 
-                asyncio.run(
-                    bot.send_message(
-                        chat_id=CHAT_ID,
-                        text=message
-                    )
-                )
+        except Exception as e:
 
-                print(
-                    f"✅ Reminder Sent: {task_name}"
-                )
+            print(
+                "Reminder Error:",
+                e
+            )
+```
 
-            except Exception as e:
+schedule.every(30).seconds.do(
+check_tasks
+)
 
-                print(
-                    "Reminder Error:",
-                    e
-                )
 
 # =========================
 # SCHEDULER
