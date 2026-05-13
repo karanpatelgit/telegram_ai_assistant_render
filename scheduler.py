@@ -318,7 +318,15 @@ def check_tasks():
         status = task[4]
 
         if (
-            task_time == now and
+
+            task_date == today_date
+        
+            and
+        
+            task_time == now
+        
+            and
+        
             status != "Done"
         ):
 
