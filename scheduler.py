@@ -193,7 +193,62 @@ async def notes(update, context):
         )
 
     await update.message.reply_text(msg)
+# =========================
+# BULK ADD TASKS
+# =========================
 
+async def bulkadd(update, context):
+
+    try:
+
+        text = update.message.text.replace(
+            "/bulkadd",
+            ""
+        ).strip()
+
+        lines = text.split("\n")
+
+        added_tasks = []
+
+        for line in lines:
+
+            parts = line.split(",")
+
+            if len(parts) != 2:
+                continue
+
+            task = parts[0].strip()
+
+            task_time = parts[1].strip()
+
+            add_task(task, task_time)
+
+            added_tasks.append(
+                f"✅ {task} - {task_time}"
+            )
+
+        if added_tasks:
+
+            msg = "📅 Multiple Tasks Added\n\n"
+
+            msg += "\n".join(added_tasks)
+
+            await update.message.reply_text(msg)
+
+        else:
+
+            await update.message.reply_text(
+                "❌ No valid tasks found"
+            )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Error adding tasks"
+        )
+        
 # =========================
 # HANDLERS
 # =========================
