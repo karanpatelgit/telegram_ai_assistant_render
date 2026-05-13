@@ -2,16 +2,10 @@ import threading
 import time
 import schedule
 import asyncio
-
-from database import (
-add_task,
-get_tasks,
-complete_task,
-add_note,
-get_notes
-)
+import os
 
 from datetime import datetime
+from dotenv import load_dotenv
 
 from telegram import Bot
 from telegram.ext import (
@@ -19,13 +13,12 @@ from telegram.ext import (
     CommandHandler
 )
 
-from dotenv import load_dotenv
-import os
-
 from database import (
     add_task,
     get_tasks,
-    complete_task
+    complete_task,
+    add_note,
+    get_notes
 )
 
 # =========================
@@ -90,7 +83,7 @@ async def today(update, context):
     await update.message.reply_text(msg)
 
 # =========================
-# ADD TASK COMMAND
+# ADD TASK
 # =========================
 
 async def add(update, context):
@@ -127,7 +120,7 @@ async def add(update, context):
         )
 
 # =========================
-# COMPLETE TASK COMMAND
+# COMPLETE TASK
 # =========================
 
 async def done(update, context):
@@ -157,13 +150,12 @@ async def done(update, context):
             "/done TASK_ID"
         )
 
-
-
 # =========================
 # SAVE NOTE
 # =========================
 
 async def note(update, context):
+
     text = update.message.text.replace(
         "/note ",
         ""
@@ -174,7 +166,6 @@ async def note(update, context):
     await update.message.reply_text(
         "📝 Note Saved"
     )
-
 
 # =========================
 # SHOW NOTES
@@ -196,10 +187,12 @@ async def notes(update, context):
 
     for item in all_notes:
 
-        msg += f"{item[0]}. {item[1]}\n\n"
+        msg += (
+            f"{item[0]}. "
+            f"{item[1]}\n\n"
+        )
 
     await update.message.reply_text(msg)
-
 
 # =========================
 # HANDLERS
@@ -220,82 +213,69 @@ app.add_handler(
 app.add_handler(
     CommandHandler("done", done)
 )
+
 app.add_handler(
-CommandHandler("note", note)
+    CommandHandler("note", note)
 )
 
 app.add_handler(
-CommandHandler("notes", notes)
+    CommandHandler("notes", notes)
 )
 
 # =========================
-
 # REMINDER ENGINE
-
 # =========================
-
-import asyncio
 
 def check_tasks():
 
+    now = datetime.now().strftime(
+        "%H:%M"
+    )
 
-now = datetime.now().strftime(
-    "%H:%M"
-)
+    tasks = get_tasks()
 
-tasks = get_tasks()
+    for task in tasks:
 
-for task in tasks:
+        task_id = task[0]
 
-    task_id = task[0]
+        task_name = task[1]
 
-    task_name = task[1]
+        task_time = task[2]
 
-    task_time = task[2]
+        status = task[3]
 
-    status = task[3]
+        if (
+            task_time == now and
+            status != "Done"
+        ):
 
-    if (
+            message = (
+                f"⏰ Reminder\n\n"
+                f"Task: {task_name}\n"
+                f"ID: {task_id}\n\n"
+                f"Complete using:\n"
+                f"/done {task_id}"
+            )
 
-        task_time == now and
-        status != "Done"
-    ):
+            try:
 
-        message = (
-
-            f"⏰ Reminder\n\n"
-            f"Task: {task_name}\n"
-            f"ID: {task_id}\n\n"
-            f"Complete using:\n"
-            f"/done {task_id}"
-        )
-
-        try:
-
-            asyncio.run(
-
-                bot.send_message(
-                    chat_id=CHAT_ID,
-                    text=message
+                asyncio.run(
+                    bot.send_message(
+                        chat_id=CHAT_ID,
+                        text=message
+                    )
                 )
-            )
 
-            print(
-                f"✅ Reminder Sent: {task_name}"
-            )
+                print(
+                    f"✅ Reminder Sent: {task_name}"
+                )
 
-        except Exception as e:
+            except Exception as e:
 
-            print(
-                "Reminder Error:",
-                e
-            )
-```
-
-schedule.every(30).seconds.do(
-check_tasks
-)
-
+                print(
+                    "Reminder Error:",
+                    e
+                )
 
 # =========================
 # SCHEDULER
