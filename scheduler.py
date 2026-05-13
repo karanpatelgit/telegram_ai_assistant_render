@@ -5,7 +5,7 @@ from datetime import datetime
 
 from telegram import Bot
 from telegram.ext import (
-    Updater,
+    Application,
     CommandHandler
 )
 
