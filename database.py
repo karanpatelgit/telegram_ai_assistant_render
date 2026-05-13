@@ -30,6 +30,23 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 """)
 
+
+# =========================
+# ADD DATE COLUMN
+# =========================
+
+try:
+
+    cursor.execute(
+        "ALTER TABLE tasks ADD COLUMN task_date TEXT"
+    )
+
+    conn.commit()
+
+except:
+    pass
+
+
 # =========================
 # NOTES TABLE
 # =========================
@@ -51,13 +68,23 @@ conn.commit()
 # ADD TASK
 # =========================
 
-def add_task(task, task_time):
+def add_task(task_date, task, task_time):
 
     cursor.execute(
 
-        "INSERT INTO tasks (task, task_time, status) VALUES (?, ?, ?)",
+        """
+        INSERT INTO tasks
+        (task_date, task, task_time, status)
 
-        (task, task_time, "Pending")
+        VALUES (?, ?, ?, ?)
+        """,
+
+        (
+            task_date,
+            task,
+            task_time,
+            "Pending"
+        )
     )
 
     conn.commit()
