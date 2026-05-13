@@ -156,49 +156,7 @@ async def done(update, context):
             "Use:\n"
             "/done TASK_ID"
         )
-# =========================
-# SAVE NOTE
-# =========================
 
-async def note(update, context):
-
-    text = update.message.text.replace(
-        "/note ",
-        ""
-    )
-
-    add_note(text)
-
-    await update.message.reply_text(
-        "📝 Note Saved"
-    )
-
-
-# =========================
-# SHOW NOTES
-# =========================
-
-async def notes(update, context):
-
-    all_notes = get_notes()
-
-    if not all_notes:
-
-        await update.message.reply_text(
-            "No Notes"
-        )
-
-        return
-
-    msg = "📝 Stored Notes\n\n"
-
-    for item in all_notes:
-
-        msg += (
-            f"{item[0]}. {item[1]}\n\n"
-        )
-
-    await update.message.reply_text(msg)
 # =========================
 # HANDLERS
 # =========================
