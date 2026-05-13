@@ -30,32 +30,27 @@ CHAT_ID = os.getenv(
 
 bot = Bot(token=TOKEN)
 
-updater = Updater(
-    TOKEN,
-    use_context=True
-)
-
-dispatcher = updater.dispatcher
+app = Application.builder().token(TOKEN).build()
 
 
 # =========================
 # TELEGRAM COMMANDS
 # =========================
 
-def start(update, context):
+async  def start( update, context):
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "🤖 AI Assistant Running"
     )
 
 
-def today(update, context):
+async  def today(update, context):
 
     tasks = get_tasks()
 
     if not tasks:
 
-        update.message.reply_text(
+        await update.message.reply_text(
             "🎉 No Tasks"
         )
 
@@ -72,14 +67,14 @@ def today(update, context):
             f"Status: {task[3]}\n\n"
         )
 
-    update.message.reply_text(msg)
+    await update.message.reply_text(msg)
 
 
-def add(update, context):
+async  def add(update, context):
 
     try:
 
-        text = update.message.text.replace(
+        text = await update.message.text.replace(
             "/add ",
             ""
         )
@@ -92,23 +87,23 @@ def add(update, context):
 
         add_task(task, time_value)
 
-        update.message.reply_text(
+        await update.message.reply_text(
             "✅ Task Added"
         )
 
     except:
 
-        update.message.reply_text(
+        await update.message.reply_text(
             "❌ Use:\n/add Task, HH:MM"
         )
 
 
-def done(update, context):
+async def done(update, context):
 
     try:
 
         task_id = int(
-            update.message.text.replace(
+            await update.message.text.replace(
                 "/done ",
                 ""
             )
@@ -116,30 +111,30 @@ def done(update, context):
 
         complete_task(task_id)
 
-        update.message.reply_text(
+        await update.message.reply_text(
             "✅ Task Completed"
         )
 
     except:
 
-        update.message.reply_text(
+        await update.message.reply_text(
             "❌ Use:\n/done TASK_ID"
         )
 
 
-dispatcher.add_handler(
+app.add_handler(
     CommandHandler("start", start)
 )
 
-dispatcher.add_handler(
+app.add_handler(
     CommandHandler("today", today)
 )
 
-dispatcher.add_handler(
+app.add_handler(
     CommandHandler("add", add)
 )
 
-dispatcher.add_handler(
+app.add_handler(
     CommandHandler("done", done)
 )
 
@@ -147,7 +142,7 @@ dispatcher.add_handler(
 # REMINDER ENGINE
 # =========================
 
-def check_tasks():
+async def check_tasks():
 
     now = datetime.now().strftime(
         "%H:%M"
@@ -196,7 +191,7 @@ schedule.every(30).seconds.do(
 # THREADS
 # =========================
 
-def run_scheduler():
+async def run_scheduler():
 
     while True:
 
@@ -213,6 +208,4 @@ scheduler_thread.start()
 
 print("🚀 AI Assistant Running")
 
-updater.start_polling()
-
-updater.idle()
+app.run_polling()
