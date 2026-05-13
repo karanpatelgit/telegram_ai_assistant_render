@@ -9,6 +9,37 @@ from telegram.ext import (
     Application,
     CommandHandler
 )
+
+from database import (
+    add_task,
+    get_tasks,
+    complete_task,
+    add_note,
+    get_notes
+)
+
+# =========================
+# LOAD ENV
+# =========================
+
+load_dotenv()
+
+TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN"
+)
+
+CHAT_ID = os.getenv(
+    "CHAT_ID"
+)
+
+# =========================
+# TELEGRAM SETUP
+# =========================
+
+bot = Bot(token=TOKEN)
+
+app = Application.builder().token(TOKEN).build()
+
 # =========================
 # BULK ADD TASKS
 # =========================
