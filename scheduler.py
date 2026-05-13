@@ -1,6 +1,8 @@
 import threading
 import time
 import schedule
+import asyncio
+
 from datetime import datetime
 
 from telegram import Bot
@@ -18,6 +20,10 @@ from database import (
     complete_task
 )
 
+# =========================
+# LOAD ENV
+# =========================
+
 load_dotenv()
 
 TOKEN = os.getenv(
@@ -28,23 +34,29 @@ CHAT_ID = os.getenv(
     "CHAT_ID"
 )
 
+# =========================
+# TELEGRAM SETUP
+# =========================
+
 bot = Bot(token=TOKEN)
 
 app = Application.builder().token(TOKEN).build()
 
-
 # =========================
-# TELEGRAM COMMANDS
+# START COMMAND
 # =========================
 
-async  def start( update, context):
+async def start(update, context):
 
     await update.message.reply_text(
         "🤖 AI Assistant Running"
     )
 
+# =========================
+# TODAY COMMAND
+# =========================
 
-async  def today(update, context):
+async def today(update, context):
 
     tasks = get_tasks()
 
@@ -56,7 +68,7 @@ async  def today(update, context):
 
         return
 
-    msg = "📅 Tasks\n\n"
+    msg = "📅 Today's Tasks\n\n"
 
     for task in tasks:
 
@@ -69,12 +81,15 @@ async  def today(update, context):
 
     await update.message.reply_text(msg)
 
+# =========================
+# ADD TASK COMMAND
+# =========================
 
-async  def add(update, context):
+async def add(update, context):
 
     try:
 
-        text = await update.message.text.replace(
+        text = update.message.text.replace(
             "/add ",
             ""
         )
@@ -88,22 +103,31 @@ async  def add(update, context):
         add_task(task, time_value)
 
         await update.message.reply_text(
-            "✅ Task Added"
+            f"✅ Task Added\n\n"
+            f"Task: {task}\n"
+            f"Time: {time_value}"
         )
 
-    except:
+    except Exception as e:
+
+        print(e)
 
         await update.message.reply_text(
-            "❌ Use:\n/add Task, HH:MM"
+            "❌ Wrong Format\n\n"
+            "Use:\n"
+            "/add Task Name, HH:MM"
         )
 
+# =========================
+# COMPLETE TASK COMMAND
+# =========================
 
 async def done(update, context):
 
     try:
 
         task_id = int(
-            await update.message.text.replace(
+            update.message.text.replace(
                 "/done ",
                 ""
             )
@@ -112,15 +136,22 @@ async def done(update, context):
         complete_task(task_id)
 
         await update.message.reply_text(
-            "✅ Task Completed"
+            f"✅ Task {task_id} Completed"
         )
 
-    except:
+    except Exception as e:
+
+        print(e)
 
         await update.message.reply_text(
-            "❌ Use:\n/done TASK_ID"
+            "❌ Wrong Format\n\n"
+            "Use:\n"
+            "/done TASK_ID"
         )
 
+# =========================
+# HANDLERS
+# =========================
 
 app.add_handler(
     CommandHandler("start", start)
@@ -142,7 +173,7 @@ app.add_handler(
 # REMINDER ENGINE
 # =========================
 
-async def check_tasks():
+def check_tasks():
 
     now = datetime.now().strftime(
         "%H:%M"
@@ -169,29 +200,43 @@ async def check_tasks():
                 f"⏰ Reminder\n\n"
                 f"Task: {task_name}\n"
                 f"ID: {task_id}\n\n"
-                f"After completion:\n"
+                f"After completion send:\n"
                 f"/done {task_id}"
             )
 
-            bot.send_message(
-                chat_id=CHAT_ID,
-                text=message
-            )
+            try:
 
-            print(
-                f"Reminder sent for {task_name}"
-            )
+                asyncio.run(
+                    bot.send_message(
+                        chat_id=CHAT_ID,
+                        text=message
+                    )
+                )
 
+                print(
+                    f"✅ Reminder Sent: {task_name}"
+                )
+
+            except Exception as e:
+
+                print(
+                    "Reminder Error:",
+                    e
+                )
+
+# =========================
+# SCHEDULER
+# =========================
 
 schedule.every(30).seconds.do(
     check_tasks
 )
 
 # =========================
-# THREADS
+# SCHEDULER THREAD
 # =========================
 
-async def run_scheduler():
+def run_scheduler():
 
     while True:
 
@@ -199,12 +244,21 @@ async def run_scheduler():
 
         time.sleep(5)
 
+# =========================
+# START THREAD
+# =========================
 
 scheduler_thread = threading.Thread(
     target=run_scheduler
 )
 
+scheduler_thread.daemon = True
+
 scheduler_thread.start()
+
+# =========================
+# RUN BOT
+# =========================
 
 print("🚀 AI Assistant Running")
 
