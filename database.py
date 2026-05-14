@@ -1,7 +1,8 @@
 import sqlite3
 from datetime import datetime
-
-conn = sqlite3.connect("assistant.db", check_same_thread=False)
+import os
+DB_PATH = os.getenv("DB_PATH", "/app/data/assistant.db")
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
 # ── TABLES ──────────────────────────────────────────────────
