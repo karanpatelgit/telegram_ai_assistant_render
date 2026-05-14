@@ -1,8 +1,10 @@
 import sqlite3
 import os
 
-DB_PATH = os.getenv("DB_PATH", "/app/assistant.db")
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+DB_PATH = os.getenv(
+    "DB_PATH",
+    os.path.join(os.getcwd(), "assistant.db")
+)
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
