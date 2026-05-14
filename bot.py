@@ -354,32 +354,35 @@ async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /ask your question")
         return
 
-    # get or create history for this user
     if user_id not in conversation_history:
         conversation_history[user_id] = []
 
-    # add user message to history
     conversation_history[user_id].append({
         "role": "user",
         "content": question
     })
 
-    # keep only last 10 messages (5 exchanges) to avoid token limits
     if len(conversation_history[user_id]) > 10:
         conversation_history[user_id] = conversation_history[user_id][-10:]
 
-    await update.message.reply_text("🤔 Thinking...")
+    thinking_msg = await update.message.reply_text("🤔 Thinking...")
 
-    reply = chat_with_history(conversation_history[user_id])
+    try:
+        loop = asyncio.get_event_loop()
+        reply = await asyncio.wait_for(
+            loop.run_in_executor(None, chat_with_history, conversation_history[user_id]),
+            timeout=25
+        )
+    except asyncio.TimeoutError:
+        reply = "❌ Took too long. Try again."
 
-    # add assistant reply to history
     conversation_history[user_id].append({
         "role": "assistant",
         "content": reply
     })
 
     log_analytics("ai_ask")
-    await update.message.reply_text(f"🤖 {reply}")
+    await thinking_msg.edit_text(f"🤖 {reply}")
 
 async def cmd_explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     topic = update.message.text.replace("/explain", "").strip()
