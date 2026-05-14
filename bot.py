@@ -9,7 +9,8 @@ from datetime import datetime
 
 import pytz
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackQueryHandler
 from telegram.error import Conflict
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -69,44 +70,134 @@ async def post_init(application: Application):
 # ════════════════════════════════════════════════════════════
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("📋 Tasks", callback_data="menu_tasks"),
+            InlineKeyboardButton("🎓 Study", callback_data="menu_study"),
+        ],
+        [
+            InlineKeyboardButton("📝 Notes", callback_data="menu_notes"),
+            InlineKeyboardButton("🧠 Revision", callback_data="menu_revision"),
+        ],
+        [
+            InlineKeyboardButton("🎬 Content", callback_data="menu_content"),
+            InlineKeyboardButton("📥 Inbox", callback_data="menu_inbox"),
+        ],
+        [
+            InlineKeyboardButton("🤖 AI Tools", callback_data="menu_ai"),
+            InlineKeyboardButton("🧠 Memory", callback_data="menu_memory"),
+        ],
+        [
+            InlineKeyboardButton("📊 Stats", callback_data="menu_stats"),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        "🤖 *AI Life OS Bot*\n\n"
-        "📚 *Study:*\n"
-        "  /addexam subject YYYY-MM-DD HH:MM\n"
-        "  /exams — list exams\n"
-        "  /revise topic, subject, days\n"
-        "  /revisions — due revisions\n"
-        "  /studyplan subjects, days\n\n"
-        "📋 *Tasks:*\n"
-        "  /add YYYY-MM-DD, task, HH:MM, category\n"
-        "  /today — today's tasks\n"
-        "  /done ID\n"
-        "  /deltask ID\n\n"
-        "📝 *Notes:*\n"
-        "  /note text #tag1 #tag2\n"
-        "  /notes\n"
-        "  /find keyword\n"
-        "  /delnote ID\n\n"
-        "🎬 *Content:*\n"
-        "  /idea topic — viral reel ideas\n"
-        "  /caption topic\n"
-        "  /savecontent type, content, platform\n"
-        "  /content — idea bank\n\n"
-        "🤖 *AI:*\n"
-        "  /ask question\n"
-        "  /explain topic\n"
-        "  /summarize text\n"
-        "  /decide question\n\n"
-        "📥 *Inbox:*\n"
-        "  /inbox — view unprocessed\n"
-        "  /done_inbox ID\n\n"
-        "🧠 *Memory:*\n"
-        "  /remember key: value\n"
-        "  /memory\n\n"
-        "📊 /stats — analytics",
-        parse_mode="Markdown"
+        "🤖 AI Life OS Bot\nChoose a category:",
+        reply_markup=reply_markup
     )
+async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
 
+    menus = {
+        "menu_tasks": (
+            "📋 Tasks\n\n"
+            "/add YYYY-MM-DD, task, HH:MM, category\n"
+            "/today — today's tasks\n"
+            "/done ID — mark done\n"
+            "/deltask ID — delete task"
+        ),
+        "menu_study": (
+            "🎓 Study\n\n"
+            "/addexam subject YYYY-MM-DD HH:MM\n"
+            "/exams — list all exams\n"
+            "/delexam ID — delete exam\n"
+            "/studyplan subjects, days — AI study plan"
+        ),
+        "menu_notes": (
+            "📝 Notes\n\n"
+            "/note text #tag — save a note\n"
+            "/notes — list all notes\n"
+            "/find keyword — search notes\n"
+            "/delnote ID — delete note"
+        ),
+        "menu_revision": (
+            "🧠 Revision\n\n"
+            "/revise topic, subject, days\n"
+            "/revisions — view schedule\n\n"
+            "Uses spaced repetition.\n"
+            "Reminders auto-sent when due!"
+        ),
+        "menu_content": (
+            "🎬 Content Creator\n\n"
+            "/idea topic — 5 viral reel ideas\n"
+            "/caption topic, platform\n"
+            "/savecontent type, content, platform\n"
+            "/content — view idea bank"
+        ),
+        "menu_inbox": (
+            "📥 Inbox\n\n"
+            "Send any text and it goes to inbox.\n"
+            "/inbox — view all items\n"
+            "/done_inbox ID — mark processed"
+        ),
+        "menu_ai": (
+            "🤖 AI Tools\n\n"
+            "/ask question — ask anything\n"
+            "/explain topic — simple explanation\n"
+            "/summarize text — summarize\n"
+            "/decide question — decision helper"
+        ),
+        "menu_memory": (
+            "🧠 Memory\n\n"
+            "/remember key: value\n"
+            "/memory — view all memories\n\n"
+            "Bot remembers your goals and subjects!"
+        ),
+        "menu_stats": (
+            "📊 Analytics\n\n"
+            "/stats — view usage stats\n\n"
+            "Tracks tasks, notes, AI calls and more!"
+        ),
+    }
+
+    back_keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="menu_main")]]
+    back_markup = InlineKeyboardMarkup(back_keyboard)
+
+    if data == "menu_main":
+        keyboard = [
+            [
+                InlineKeyboardButton("📋 Tasks", callback_data="menu_tasks"),
+                InlineKeyboardButton("🎓 Study", callback_data="menu_study"),
+            ],
+            [
+                InlineKeyboardButton("📝 Notes", callback_data="menu_notes"),
+                InlineKeyboardButton("🧠 Revision", callback_data="menu_revision"),
+            ],
+            [
+                InlineKeyboardButton("🎬 Content", callback_data="menu_content"),
+                InlineKeyboardButton("📥 Inbox", callback_data="menu_inbox"),
+            ],
+            [
+                InlineKeyboardButton("🤖 AI Tools", callback_data="menu_ai"),
+                InlineKeyboardButton("🧠 Memory", callback_data="menu_memory"),
+            ],
+            [
+                InlineKeyboardButton("📊 Stats", callback_data="menu_stats"),
+            ],
+        ]
+        await query.edit_message_text(
+            "🤖 AI Life OS Bot\nChoose a category:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    elif data in menus:
+        await query.edit_message_text(
+            menus[data],
+            reply_markup=back_markup
+        )
+    
 # ── TASKS ────────────────────────────────────────────────────
 
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -409,6 +500,7 @@ def main():
 
         # ── handlers ──
         app.add_handler(CommandHandler("start",        start))
+        app.add_handler(CallbackQueryHandler(menu_callback))
         app.add_handler(CommandHandler("add",          cmd_add))
         app.add_handler(CommandHandler("today",        cmd_today))
         app.add_handler(CommandHandler("done",         cmd_done))
