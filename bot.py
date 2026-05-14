@@ -36,6 +36,8 @@ from scheduler import (
     check_tasks, check_revisions, check_exam_countdown,
     morning_briefing, night_summary
 )
+# stores conversation history per user
+conversation_history = {}
 
 # ── SETUP ────────────────────────────────────────────────────
 
@@ -345,9 +347,37 @@ async def cmd_delnote(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── AI COMMANDS ──────────────────────────────────────────────
 
 async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
     question = update.message.text.replace("/ask", "").strip()
+
+    if not question:
+        await update.message.reply_text("Usage: /ask your question")
+        return
+
+    # get or create history for this user
+    if user_id not in conversation_history:
+        conversation_history[user_id] = []
+
+    # add user message to history
+    conversation_history[user_id].append({
+        "role": "user",
+        "content": question
+    })
+
+    # keep only last 10 messages (5 exchanges) to avoid token limits
+    if len(conversation_history[user_id]) > 10:
+        conversation_history[user_id] = conversation_history[user_id][-10:]
+
     await update.message.reply_text("🤔 Thinking...")
-    reply = ask_anything(question)
+
+    reply = chat_with_history(conversation_history[user_id])
+
+    # add assistant reply to history
+    conversation_history[user_id].append({
+        "role": "assistant",
+        "content": reply
+    })
+
     log_analytics("ai_ask")
     await update.message.reply_text(f"🤖 {reply}")
 
@@ -356,6 +386,10 @@ async def cmd_explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📖 Explaining...")
     reply = explain_simple(topic)
     await update.message.reply_text(f"💡 {reply}")
+async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    conversation_history[user_id] = []
+    await update.message.reply_text("🔄 Conversation reset! Start fresh with /ask")
 
 async def cmd_summarize(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.replace("/summarize", "").strip()
@@ -518,6 +552,7 @@ def main():
         app.add_handler(CommandHandler("delnote",      cmd_delnote))
         app.add_handler(CommandHandler("ask",          cmd_ask))
         app.add_handler(CommandHandler("explain",      cmd_explain))
+        app.add_handler(CommandHandler("reset", cmd_reset))
         app.add_handler(CommandHandler("summarize",    cmd_summarize))
         app.add_handler(CommandHandler("decide",       cmd_decide))
         app.add_handler(CommandHandler("studyplan",    cmd_studyplan))
