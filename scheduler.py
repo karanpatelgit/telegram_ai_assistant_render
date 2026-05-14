@@ -463,18 +463,33 @@ app.add_handler(
 # MAIN
 # =========================
 
-async def main():
+async def scheduler_loop():
 
-    print("🚀 AI Assistant Running")
+    while True:
 
-    asyncio.create_task(
-        scheduler_loop()
-    )
+        await check_tasks()
 
-    await app.run_polling(
-        drop_pending_updates=True
-    )
+        await asyncio.sleep(30)
+
+# =========================
+# START BOT
+# =========================
 
 if __name__ == "__main__":
 
+    print("🚀 AI Assistant Running")
+
+    # background reminder task
+    app.job_queue.run_repeating(
+        lambda context: asyncio.create_task(
+            check_tasks()
+        ),
+        interval=30,
+        first=5
+    )
+
+    # RUN BOT
+    app.run_polling(
+        drop_pending_updates=True
+    )
     asyncio.run(main())
