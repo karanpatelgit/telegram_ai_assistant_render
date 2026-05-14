@@ -3,7 +3,10 @@ import sqlite3
 conn = sqlite3.connect("assistant.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# TASKS
+# =========================
+# TASKS TABLE
+# =========================
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,7 +17,10 @@ CREATE TABLE IF NOT EXISTS tasks (
 )
 """)
 
-# NOTES
+# =========================
+# NOTES TABLE
+# =========================
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,7 +30,9 @@ CREATE TABLE IF NOT EXISTS notes (
 
 conn.commit()
 
-# ---------------- TASKS ----------------
+# =========================
+# TASK FUNCTIONS
+# =========================
 
 def add_task(task_date, task, task_time):
     cursor.execute(
@@ -34,8 +42,7 @@ def add_task(task_date, task, task_time):
     conn.commit()
 
 def get_tasks():
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT
             id,
             task_date,
@@ -44,23 +51,32 @@ def get_tasks():
             status
         FROM tasks
         ORDER BY task_date, task_time
-        """
-    )
-
+    """)
     return cursor.fetchall()
 
 def complete_task(task_id):
-    cursor.execute("UPDATE tasks SET status='Done' WHERE id=?", (task_id,))
+    cursor.execute(
+        "UPDATE tasks SET status='Done' WHERE id=?",
+        (task_id,)
+    )
     conn.commit()
 
 def delete_task(task_id):
-    cursor.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+    cursor.execute(
+        "DELETE FROM tasks WHERE id=?",
+        (task_id,)
+    )
     conn.commit()
 
-# ---------------- NOTES ----------------
+# =========================
+# NOTE FUNCTIONS
+# =========================
 
 def add_note(note):
-    cursor.execute("INSERT INTO notes (note) VALUES (?)", (note,))
+    cursor.execute(
+        "INSERT INTO notes (note) VALUES (?)",
+        (note,)
+    )
     conn.commit()
 
 def get_notes():
@@ -68,5 +84,8 @@ def get_notes():
     return cursor.fetchall()
 
 def delete_note(note_id):
-    cursor.execute("DELETE FROM notes WHERE id=?", (note_id,))
-    conn.commit()turn cursor.fetchall()
+    cursor.execute(
+        "DELETE FROM notes WHERE id=?",
+        (note_id,)
+    )
+    conn.commit()
