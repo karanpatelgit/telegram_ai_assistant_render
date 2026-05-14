@@ -2,6 +2,7 @@ import os
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
+from scheduler import check_tasks
 
 from telegram import Update
 from telegram.ext import (
@@ -49,7 +50,15 @@ async def ai_reply(prompt: str):
 
     except Exception as e:
         return f"AI Error: {e}"
+#--------------- JobQUE---------------------
+job_queue = app.job_queue
 
+job_queue.run_repeating(
+    check_tasks,
+    interval=30,   # every 30 seconds
+    first=10,
+    chat_id=CHAT_ID
+)
 # ---------------- COMMANDS ----------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
