@@ -1,8 +1,5 @@
-pandas
 python-telegram-bot[job-queue]==20.7
-python-telegram-bot==20.7
-httpx==0.25.2
-python-dotenv==1.0.1
-schedule==1.2.1
 requests
+python-dotenv
 pytz
+apscheduler
