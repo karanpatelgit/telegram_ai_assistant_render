@@ -7,6 +7,10 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 from database import get_tasks
 
+import pytz
+
+ist = pytz.timezone("Asia/Kolkata")
+
 # =========================
 # LOAD ENV
 # =========================
@@ -43,8 +47,8 @@ app.add_handler(CommandHandler("start", start))
 # =========================
 async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
 
-    now_time = datetime.now().strftime("%H:%M")
-    today_date = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now(ist).strftime("%H:%M")
+    today_date = datetime.now(ist).strftime("%Y-%m-%d")
 
     tasks = get_tasks()
 
