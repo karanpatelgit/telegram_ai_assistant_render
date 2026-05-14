@@ -1,20 +1,15 @@
-import sys
-import traceback
-print("⚙️  bot.py starting — Python", sys.version, flush=True)
-
 import os
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, time as dtime
 
 import pytz
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CallbackQueryHandler
 from telegram.error import Conflict
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
-    ContextTypes, filters
+    ContextTypes, filters, CallbackQueryHandler
 )
 
 from database import (
@@ -30,16 +25,12 @@ from database import (
 from ai import (
     ask_anything, explain_simple, summarize_text,
     decision_helper, viral_ideas, generate_caption,
-    study_plan, motivation_line
+    study_plan, motivation_line, chat_with_history
 )
 from scheduler import (
     check_tasks, check_revisions, check_exam_countdown,
     morning_briefing, night_summary
 )
-# stores conversation history per user
-conversation_history = {}
-
-# ── SETUP ────────────────────────────────────────────────────
 
 load_dotenv()
 TOKEN   = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -51,7 +42,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# ── ERROR HANDLER ────────────────────────────────────────────
+conversation_history = {}
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     if isinstance(context.error, Conflict):
@@ -60,17 +51,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     else:
         logging.error(f"Error: {context.error}")
 
-# ── POST INIT ────────────────────────────────────────────────
-
 async def post_init(application: Application):
     await application.bot.delete_webhook(drop_pending_updates=True)
     await asyncio.sleep(2)
     logging.info("✅ Bot initialized")
-
-
-# ════════════════════════════════════════════════════════════
-# COMMANDS
-# ════════════════════════════════════════════════════════════
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -94,11 +78,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("📊 Stats", callback_data="menu_stats"),
         ],
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "🤖 AI Life OS Bot\nChoose a category:",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -108,66 +92,66 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "menu_tasks": (
             "📋 Tasks\n\n"
             "/add YYYY-MM-DD, task, HH:MM, category\n"
-            "/today — today's tasks\n"
-            "/done ID — mark done\n"
-            "/deltask ID — delete task"
+            "/today - today's tasks\n"
+            "/done ID - mark done\n"
+            "/deltask ID - delete task"
         ),
         "menu_study": (
             "🎓 Study\n\n"
             "/addexam subject YYYY-MM-DD HH:MM\n"
-            "/exams — list all exams\n"
-            "/delexam ID — delete exam\n"
-            "/studyplan subjects, days — AI study plan"
+            "/exams - list all exams\n"
+            "/delexam ID - delete exam\n"
+            "/studyplan subjects, days"
         ),
         "menu_notes": (
             "📝 Notes\n\n"
-            "/note text #tag — save a note\n"
-            "/notes — list all notes\n"
-            "/find keyword — search notes\n"
-            "/delnote ID — delete note"
+            "/note text #tag - save a note\n"
+            "/notes - list all notes\n"
+            "/find keyword - search notes\n"
+            "/delnote ID - delete note"
         ),
         "menu_revision": (
             "🧠 Revision\n\n"
             "/revise topic, subject, days\n"
-            "/revisions — view schedule\n\n"
+            "/revisions - view schedule\n\n"
             "Uses spaced repetition.\n"
             "Reminders auto-sent when due!"
         ),
         "menu_content": (
             "🎬 Content Creator\n\n"
-            "/idea topic — 5 viral reel ideas\n"
+            "/idea topic - 5 viral reel ideas\n"
             "/caption topic, platform\n"
             "/savecontent type, content, platform\n"
-            "/content — view idea bank"
+            "/content - view idea bank"
         ),
         "menu_inbox": (
             "📥 Inbox\n\n"
             "Send any text and it goes to inbox.\n"
-            "/inbox — view all items\n"
-            "/done_inbox ID — mark processed"
+            "/inbox - view all items\n"
+            "/done_inbox ID - mark processed"
         ),
         "menu_ai": (
             "🤖 AI Tools\n\n"
-            "/ask question — ask anything\n"
-            "/explain topic — simple explanation\n"
-            "/summarize text — summarize\n"
-            "/decide question — decision helper"
+            "/ask question - chat with AI\n"
+            "/reset - reset conversation\n"
+            "/explain topic - simple explanation\n"
+            "/summarize text - summarize\n"
+            "/decide question - decision helper"
         ),
         "menu_memory": (
             "🧠 Memory\n\n"
             "/remember key: value\n"
-            "/memory — view all memories\n\n"
-            "Bot remembers your goals and subjects!"
+            "/memory - view all memories"
         ),
         "menu_stats": (
             "📊 Analytics\n\n"
-            "/stats — view usage stats\n\n"
-            "Tracks tasks, notes, AI calls and more!"
+            "/stats - view usage stats"
         ),
     }
 
-    back_keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="menu_main")]]
-    back_markup = InlineKeyboardMarkup(back_keyboard)
+    back_markup = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("⬅️ Back", callback_data="menu_main")]]
+    )
 
     if data == "menu_main":
         keyboard = [
@@ -196,12 +180,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     elif data in menus:
-        await query.edit_message_text(
-            menus[data],
-            reply_markup=back_markup
-        )
-    
-# ── TASKS ────────────────────────────────────────────────────
+        await query.edit_message_text(menus[data], reply_markup=back_markup)
 
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -211,7 +190,9 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category = parts[3] if len(parts) > 3 else "general"
         add_task(date, task, time, category)
         log_analytics("task_added")
-        await update.message.reply_text(f"✅ Task added!\n📅 {date} | {time}\n📝 {task}\n🏷 {category}")
+        await update.message.reply_text(
+            f"✅ Task added!\n📅 {date} | {time}\n📝 {task}\n🏷 {category}"
+        )
     except:
         await update.message.reply_text("Usage:\n/add YYYY-MM-DD, Task, HH:MM, category")
 
@@ -219,13 +200,13 @@ async def cmd_today(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(ist).strftime("%Y-%m-%d")
     tasks = get_tasks(date=today)
     if not tasks:
-        await update.message.reply_text("✅ No tasks today!")
+        await update.message.reply_text("No tasks today!")
         return
-    msg = f"📅 *Tasks for {today}*\n\n"
+    msg = f"📅 Tasks for {today}\n\n"
     for t in tasks:
         icon = "✅" if t[4] == "Done" else "⏳"
-        msg += f"{icon} [{t[0]}] {t[3]} — {t[2]} `({t[5]})`\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+        msg += f"{icon} [{t[0]}] {t[3]} - {t[2]} ({t[5]})\n"
+    await update.message.reply_text(msg)
 
 async def cmd_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -243,8 +224,6 @@ async def cmd_deltask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("Usage: /deltask ID")
 
-# ── EXAMS ────────────────────────────────────────────────────
-
 async def cmd_addexam(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.replace("/addexam", "").strip()
@@ -252,7 +231,6 @@ async def cmd_addexam(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subject, exam_date, exam_time = parts[0], parts[1], parts[2]
         add_exam(subject, exam_date, exam_time)
         log_analytics("exam_added")
-
         delta = (datetime.strptime(exam_date, "%Y-%m-%d") - datetime.now()).days
         await update.message.reply_text(
             f"🎓 Exam added!\n📚 {subject}\n📅 {exam_date} at {exam_time}\n⏳ {delta} days remaining"
@@ -265,11 +243,11 @@ async def cmd_exams(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not exams:
         await update.message.reply_text("No exams scheduled")
         return
-    msg = "🎓 *Upcoming Exams*\n\n"
+    msg = "🎓 Upcoming Exams\n\n"
     for e in exams:
         delta = (datetime.strptime(e[2], "%Y-%m-%d") - datetime.now()).days
-        msg += f"📚 [{e[0]}] *{e[1]}* — {e[2]} {e[3]}\n⏳ {delta} days\n\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+        msg += f"[{e[0]}] {e[1]} - {e[2]} {e[3]}\n⏳ {delta} days\n\n"
+    await update.message.reply_text(msg)
 
 async def cmd_delexam(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -278,8 +256,6 @@ async def cmd_delexam(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🗑 Exam deleted")
     except:
         await update.message.reply_text("Usage: /delexam ID")
-
-# ── REVISION ─────────────────────────────────────────────────
 
 async def cmd_revise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -293,19 +269,17 @@ async def cmd_revise(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🧠 Revision scheduled!\n📖 {topic}\n📚 {subject}\n⏰ First review in {days} days"
         )
     except:
-        await update.message.reply_text("Usage: /revise topic, subject, days(optional)")
+        await update.message.reply_text("Usage: /revise topic, subject, days")
 
 async def cmd_revisions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     revisions = get_all_revisions()
     if not revisions:
         await update.message.reply_text("No revisions scheduled")
         return
-    msg = "🧠 *Revision Schedule*\n\n"
+    msg = "🧠 Revision Schedule\n\n"
     for r in revisions:
         msg += f"📖 {r[1]} ({r[2]})\n📅 Next: {r[3]}\n\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
-
-# ── NOTES ────────────────────────────────────────────────────
+    await update.message.reply_text(msg)
 
 async def cmd_note(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.replace("/note", "").strip()
@@ -320,10 +294,10 @@ async def cmd_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not notes:
         await update.message.reply_text("No notes yet")
         return
-    msg = "📝 *Notes*\n\n"
+    msg = "📝 Notes\n\n"
     for n in notes[:15]:
         msg += f"[{n[0]}] {n[1][:80]}{'...' if len(n[1])>80 else ''}\n🏷 {n[2] or 'no tags'}\n\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    await update.message.reply_text(msg)
 
 async def cmd_find(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text.replace("/find", "").strip()
@@ -331,10 +305,10 @@ async def cmd_find(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not results:
         await update.message.reply_text(f"No notes found for: {query}")
         return
-    msg = f"🔍 *Results for '{query}'*\n\n"
+    msg = f"🔍 Results for '{query}'\n\n"
     for n in results:
         msg += f"[{n[0]}] {n[1][:100]}\n🏷 {n[2]}\n\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    await update.message.reply_text(msg)
 
 async def cmd_delnote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -344,8 +318,6 @@ async def cmd_delnote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("Usage: /delnote ID")
 
-# ── AI COMMANDS ──────────────────────────────────────────────
-
 async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     question = update.message.text.replace("/ask", "").strip()
@@ -354,90 +326,97 @@ async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /ask your question")
         return
 
-    # get or create history for this user
     if user_id not in conversation_history:
         conversation_history[user_id] = []
 
-    # add user message to history
     conversation_history[user_id].append({
-        "role": "user",
-        "content": question
+        "role": "user", "content": question
     })
 
-    # keep only last 10 messages (5 exchanges) to avoid token limits
     if len(conversation_history[user_id]) > 10:
         conversation_history[user_id] = conversation_history[user_id][-10:]
 
-    await update.message.reply_text("🤔 Thinking...")
+    thinking_msg = await update.message.reply_text("🤔 Thinking...")
 
-    reply = chat_with_history(conversation_history[user_id])
+    try:
+        loop = asyncio.get_event_loop()
+        reply = await asyncio.wait_for(
+            loop.run_in_executor(None, chat_with_history, conversation_history[user_id]),
+            timeout=25
+        )
+    except asyncio.TimeoutError:
+        reply = "❌ Took too long. Try again."
 
-    # add assistant reply to history
     conversation_history[user_id].append({
-        "role": "assistant",
-        "content": reply
+        "role": "assistant", "content": reply
     })
 
     log_analytics("ai_ask")
-    await update.message.reply_text(f"🤖 {reply}")
+    await thinking_msg.edit_text(f"🤖 {reply}")
 
-async def cmd_explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    topic = update.message.text.replace("/explain", "").strip()
-    await update.message.reply_text("📖 Explaining...")
-    reply = explain_simple(topic)
-    await update.message.reply_text(f"💡 {reply}")
 async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     conversation_history[user_id] = []
-    await update.message.reply_text("🔄 Conversation reset! Start fresh with /ask")
+    await update.message.reply_text("🔄 Conversation reset!")
+
+async def cmd_explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    topic = update.message.text.replace("/explain", "").strip()
+    thinking_msg = await update.message.reply_text("📖 Explaining...")
+    loop = asyncio.get_event_loop()
+    reply = await loop.run_in_executor(None, explain_simple, topic)
+    await thinking_msg.edit_text(f"💡 {reply}")
 
 async def cmd_summarize(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.replace("/summarize", "").strip()
-    await update.message.reply_text("📝 Summarizing...")
-    reply = summarize_text(text)
-    await update.message.reply_text(f"📋 {reply}")
+    thinking_msg = await update.message.reply_text("📝 Summarizing...")
+    loop = asyncio.get_event_loop()
+    reply = await loop.run_in_executor(None, summarize_text, text)
+    await thinking_msg.edit_text(f"📋 {reply}")
 
 async def cmd_decide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question = update.message.text.replace("/decide", "").strip()
-    await update.message.reply_text("🧭 Analyzing...")
-    reply = decision_helper(question)
+    thinking_msg = await update.message.reply_text("🧭 Analyzing...")
+    loop = asyncio.get_event_loop()
+    reply = await loop.run_in_executor(None, decision_helper, question)
     log_analytics("ai_decide")
-    await update.message.reply_text(f"🧭 {reply}")
+    await thinking_msg.edit_text(f"🧭 {reply}")
 
 async def cmd_studyplan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.replace("/studyplan", "").strip()
         parts = [p.strip() for p in text.split(",")]
-        subjects, days = parts[0], int(parts[1]) if len(parts) > 1 else 7
-        await update.message.reply_text("📚 Generating study plan...")
-        reply = study_plan(subjects, days)
+        subjects = parts[0]
+        days = int(parts[1]) if len(parts) > 1 else 7
+        thinking_msg = await update.message.reply_text("📚 Generating study plan...")
+        loop = asyncio.get_event_loop()
+        reply = await loop.run_in_executor(None, study_plan, subjects, days)
         log_analytics("study_plan_generated")
-        await update.message.reply_text(f"📚 *Study Plan*\n\n{reply}", parse_mode="Markdown")
+        await thinking_msg.edit_text(f"📚 Study Plan\n\n{reply}")
     except:
         await update.message.reply_text("Usage: /studyplan subjects, days")
 
-# ── CONTENT CREATOR ──────────────────────────────────────────
-
 async def cmd_idea(update: Update, context: ContextTypes.DEFAULT_TYPE):
     topic = update.message.text.replace("/idea", "").strip()
-    await update.message.reply_text("🚀 Generating viral ideas...")
-    reply = viral_ideas(topic)
+    thinking_msg = await update.message.reply_text("🚀 Generating viral ideas...")
+    loop = asyncio.get_event_loop()
+    reply = await loop.run_in_executor(None, viral_ideas, topic)
     log_analytics("idea_generated")
-    await update.message.reply_text(f"🎬 {reply}")
+    await thinking_msg.edit_text(f"🎬 {reply}")
 
 async def cmd_caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.replace("/caption", "").strip()
     parts = text.split(",")
-    topic    = parts[0].strip()
+    topic = parts[0].strip()
     platform = parts[1].strip() if len(parts) > 1 else "instagram"
-    await update.message.reply_text("✍️ Writing caption...")
-    reply = generate_caption(topic, platform)
+    thinking_msg = await update.message.reply_text("✍️ Writing caption...")
+    loop = asyncio.get_event_loop()
+    reply = await loop.run_in_executor(None, generate_caption, topic, platform)
     log_analytics("caption_generated")
-    await update.message.reply_text(f"📱 {reply}")
+    await thinking_msg.edit_text(f"📱 {reply}")
 
 async def cmd_savecontent(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        text  = update.message.text.replace("/savecontent", "").strip()
+        text = update.message.text.replace("/savecontent", "").strip()
         parts = [p.strip() for p in text.split(",")]
         ctype, content = parts[0], parts[1]
         platform = parts[2] if len(parts) > 2 else ""
@@ -451,22 +430,20 @@ async def cmd_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not items:
         await update.message.reply_text("Idea bank is empty")
         return
-    msg = "💡 *Idea Bank*\n\n"
+    msg = "💡 Idea Bank\n\n"
     for i in items[:10]:
-        msg += f"[{i[0]}] *{i[1]}* | {i[3]}\n{i[2][:80]}\n\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
-
-# ── INBOX ────────────────────────────────────────────────────
+        msg += f"[{i[0]}] {i[1]} | {i[3]}\n{i[2][:80]}\n\n"
+    await update.message.reply_text(msg)
 
 async def cmd_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
     items = get_inbox(processed=0)
     if not items:
         await update.message.reply_text("📥 Inbox is empty!")
         return
-    msg = "📥 *Inbox*\n\n"
+    msg = "📥 Inbox\n\n"
     for i in items:
         msg += f"[{i[0]}] {i[1][:100]}\n🕐 {i[2]}\n\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    await update.message.reply_text(msg)
 
 async def cmd_done_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -475,8 +452,6 @@ async def cmd_done_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Inbox item processed")
     except:
         await update.message.reply_text("Usage: /done_inbox ID")
-
-# ── MEMORY ───────────────────────────────────────────────────
 
 async def cmd_remember(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -492,105 +467,78 @@ async def cmd_memory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not memories:
         await update.message.reply_text("No memories stored")
         return
-    msg = "🧠 *Memory*\n\n"
+    msg = "🧠 Memory\n\n"
     for m in memories:
-        msg += f"• *{m[0]}*: {m[1]}\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
-
-# ── ANALYTICS ────────────────────────────────────────────────
+        msg += f"• {m[0]}: {m[1]}\n"
+    await update.message.reply_text(msg)
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats = get_analytics_summary()
     if not stats:
         await update.message.reply_text("No stats yet")
         return
-    msg = "📊 *Analytics*\n\n"
+    msg = "📊 Analytics\n\n"
     for s in stats:
         msg += f"• {s[0]}: {s[1]}\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
-
-# ── QUICK CAPTURE (any plain text → inbox) ───────────────────
+    await update.message.reply_text(msg)
 
 async def quick_capture(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    text = update.message.text.strip()
     add_inbox(text)
     await update.message.reply_text(
-        "📥 Captured to inbox!\nUse /inbox to view & organize"
+        "📥 Saved to inbox!\nUse /inbox to view & organize"
     )
 
-# ════════════════════════════════════════════════════════════
-# MAIN
-# ════════════════════════════════════════════════════════════
-
 def main():
-    try:
-        app = (
-            Application.builder()
-            .token(TOKEN)
-            .post_init(post_init)
-            .build()
-        )
+    app = (
+        Application.builder()
+        .token(TOKEN)
+        .post_init(post_init)
+        .build()
+    )
 
-        app.add_error_handler(error_handler)
+    app.add_error_handler(error_handler)
+    app.add_handler(CommandHandler("start",       start))
+    app.add_handler(CallbackQueryHandler(menu_callback))
+    app.add_handler(CommandHandler("add",         cmd_add))
+    app.add_handler(CommandHandler("today",       cmd_today))
+    app.add_handler(CommandHandler("done",        cmd_done))
+    app.add_handler(CommandHandler("deltask",     cmd_deltask))
+    app.add_handler(CommandHandler("addexam",     cmd_addexam))
+    app.add_handler(CommandHandler("exams",       cmd_exams))
+    app.add_handler(CommandHandler("delexam",     cmd_delexam))
+    app.add_handler(CommandHandler("revise",      cmd_revise))
+    app.add_handler(CommandHandler("revisions",   cmd_revisions))
+    app.add_handler(CommandHandler("note",        cmd_note))
+    app.add_handler(CommandHandler("notes",       cmd_notes))
+    app.add_handler(CommandHandler("find",        cmd_find))
+    app.add_handler(CommandHandler("delnote",     cmd_delnote))
+    app.add_handler(CommandHandler("ask",         cmd_ask))
+    app.add_handler(CommandHandler("reset",       cmd_reset))
+    app.add_handler(CommandHandler("explain",     cmd_explain))
+    app.add_handler(CommandHandler("summarize",   cmd_summarize))
+    app.add_handler(CommandHandler("decide",      cmd_decide))
+    app.add_handler(CommandHandler("studyplan",   cmd_studyplan))
+    app.add_handler(CommandHandler("idea",        cmd_idea))
+    app.add_handler(CommandHandler("caption",     cmd_caption))
+    app.add_handler(CommandHandler("savecontent", cmd_savecontent))
+    app.add_handler(CommandHandler("content",     cmd_content))
+    app.add_handler(CommandHandler("inbox",       cmd_inbox))
+    app.add_handler(CommandHandler("done_inbox",  cmd_done_inbox))
+    app.add_handler(CommandHandler("remember",    cmd_remember))
+    app.add_handler(CommandHandler("memory",      cmd_memory))
+    app.add_handler(CommandHandler("stats",       cmd_stats))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, quick_capture))
 
-        
-        # ── handlers ──
-        app.add_handler(CommandHandler("start",        start))
-        app.add_handler(CallbackQueryHandler(menu_callback))
-        app.add_handler(CommandHandler("add",          cmd_add))
-        app.add_handler(CommandHandler("today",        cmd_today))
-        app.add_handler(CommandHandler("done",         cmd_done))
-        app.add_handler(CommandHandler("deltask",      cmd_deltask))
-        app.add_handler(CommandHandler("addexam",      cmd_addexam))
-        app.add_handler(CommandHandler("exams",        cmd_exams))
-        app.add_handler(CommandHandler("delexam",      cmd_delexam))
-        app.add_handler(CommandHandler("revise",       cmd_revise))
-        app.add_handler(CommandHandler("revisions",    cmd_revisions))
-        app.add_handler(CommandHandler("note",         cmd_note))
-        app.add_handler(CommandHandler("notes",        cmd_notes))
-        app.add_handler(CommandHandler("find",         cmd_find))
-        app.add_handler(CommandHandler("delnote",      cmd_delnote))
-        app.add_handler(CommandHandler("ask",          cmd_ask))
-        app.add_handler(CommandHandler("explain",      cmd_explain))
-        app.add_handler(CommandHandler("reset", cmd_reset))
-        app.add_handler(CommandHandler("summarize",    cmd_summarize))
-        app.add_handler(CommandHandler("decide",       cmd_decide))
-        app.add_handler(CommandHandler("studyplan",    cmd_studyplan))
-        app.add_handler(CommandHandler("idea",         cmd_idea))
-        app.add_handler(CommandHandler("caption",      cmd_caption))
-        app.add_handler(CommandHandler("savecontent",  cmd_savecontent))
-        app.add_handler(CommandHandler("content",      cmd_content))
-        app.add_handler(CommandHandler("inbox",        cmd_inbox))
-        app.add_handler(CommandHandler("done_inbox",   cmd_done_inbox))
-        app.add_handler(CommandHandler("remember",     cmd_remember))
-        app.add_handler(CommandHandler("memory",       cmd_memory))
-        app.add_handler(CommandHandler("stats",        cmd_stats))
+    jq = app.job_queue
+    jq.run_repeating(check_tasks,          interval=60,   first=10)
+    jq.run_repeating(check_revisions,      interval=3600, first=30)
+    jq.run_repeating(check_exam_countdown, interval=3600, first=60)
+    jq.run_daily(morning_briefing, time=dtime(7, 0, tzinfo=ist))
+    jq.run_daily(night_summary,    time=dtime(22, 0, tzinfo=ist))
 
-        # plain text → quick capture
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, quick_capture))
-
-        # ── scheduled jobs ──
-        jq = app.job_queue
-        jq.run_repeating(check_tasks,          interval=60,  first=10)
-        jq.run_repeating(check_revisions,      interval=3600, first=30)
-        jq.run_repeating(check_exam_countdown, interval=3600, first=60)
-        jq.run_daily(morning_briefing, time=datetime.strptime("07:00", "%H:%M").time().replace(tzinfo=ist))
-        jq.run_daily(night_summary,    time=datetime.strptime("22:00", "%H:%M").time().replace(tzinfo=ist))
-
-        print("🚀 AI Life OS Bot Running...", flush=True)
-        app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
-
-    except Exception as e:
-        print("❌ FATAL ERROR inside main():", flush=True)
-        traceback.print_exc(file=sys.stdout)
-        sys.stdout.flush()
-        sys.exit(1)
+    print("🚀 AI Life OS Bot Running...")
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print("❌ FATAL ERROR in __main__:", e, flush=True)
-        traceback.print_exc(file=sys.stdout)
-        sys.stdout.flush()
-        sys.exit(1)
+    main()
