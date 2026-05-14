@@ -1,7 +1,10 @@
 import os
 import logging
+import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
+from telegram import Update
+from telegram.error import Conflict
 from telegram.ext import Application, CommandHandler, ContextTypes
 from database import get_tasks
 import pytz
@@ -25,17 +28,14 @@ logging.basicConfig(
 )
 
 # =========================
-# CREATE APP
+# ERROR HANDLER
 # =========================
-app = Application.builder().token(TOKEN).build()
-
-# =========================
-# START COMMAND
-# =========================
-async def start(update, context):
-    await update.message.reply_text("🤖 Bot is running")
-
-app.add_handler(CommandHandler("start", start))
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    if isinstance(context.error, Conflict):
+        logging.warning("⚠️ Conflict error caught — another instance may still be shutting down. Retrying...")
+        await asyncio.sleep(5)  # wait and let the old instance die
+    else:
+        logging.error(f"Unhandled error: {context.error}")
 
 # =========================
 # REMINDER FUNCTION
@@ -65,24 +65,49 @@ async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
                 f"/done {task_id}"
             )
             try:
-                await context.bot.send_message(
-                    chat_id=CHAT_ID,  # ✅ Fixed: use env var directly
-                    text=message
-                )
+                await context.bot.send_message(chat_id=CHAT_ID, text=message)
                 print(f"✅ Reminder sent: {task_name}")
             except Exception as e:
                 print("Reminder error:", e)
+
+# =========================
+# START COMMAND
+# =========================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🤖 Bot is running")
+
+# =========================
+# POST INIT — runs after app builds, before polling
+# =========================
+async def post_init(application: Application):
+    # Force-clear any lingering sessions on Telegram's side
+    await application.bot.delete_webhook(drop_pending_updates=True)
+    logging.info("✅ Webhook deleted and pending updates dropped")
+    await asyncio.sleep(3)  # give Telegram time to release the old session
 
 # =========================
 # MAIN
 # =========================
 if __name__ == "__main__":
     print("🚀 BOT STARTED")
+
+    app = (
+        Application.builder()
+        .token(TOKEN)
+        .post_init(post_init)   # ✅ runs cleanup before polling starts
+        .build()
+    )
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_error_handler(error_handler)  # ✅ handles Conflict gracefully
+
     app.job_queue.run_repeating(
         check_tasks,
         interval=30,
         first=10,
     )
-    app.run_polling(drop_pending_updates=True)  # ✅ Fixed: drop stale updates on start
 
-    app.run_polling()
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES,
+    )
