@@ -481,7 +481,10 @@ if __name__ == "__main__":
         interval=30,
         first=5
     )
-
+app.run_polling(
+    drop_pending_updates=True,
+    close_loop=False
+)
     # Start bot
     app.run_polling(
         drop_pending_updates=True
