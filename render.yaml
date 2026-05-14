@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: telegram-ai-assistant
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CHAT_ID
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false
