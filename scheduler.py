@@ -463,13 +463,9 @@ app.add_handler(
 # MAIN
 # =========================
 
-async def scheduler_loop():
+async def reminder_job(context):
 
-    while True:
-
-        await check_tasks()
-
-        await asyncio.sleep(30)
+    await check_tasks()
 
 # =========================
 # START BOT
@@ -479,17 +475,14 @@ if __name__ == "__main__":
 
     print("🚀 AI Assistant Running")
 
-    # background reminder task
+    # Run reminder every 30 sec
     app.job_queue.run_repeating(
-        lambda context: asyncio.create_task(
-            check_tasks()
-        ),
+        reminder_job,
         interval=30,
         first=5
     )
 
-    # RUN BOT
+    # Start bot
     app.run_polling(
         drop_pending_updates=True
     )
-    asyncio.run(main())
