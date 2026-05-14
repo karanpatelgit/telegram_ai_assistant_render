@@ -150,7 +150,27 @@ async def ai_reply(prompt: str):
 
     except Exception as e:
         return f"❌ AI Request Failed: {str(e)}"
+#==================================================        
+async def ai(update, context):
 
+    try:
+        user_text = update.message.text.replace("/ai", "").strip()
+
+        if not user_text:
+            await update.message.reply_text(
+                "❌ Use: /ai your question"
+            )
+            return
+
+        reply = await ai_reply(user_text)
+
+        await update.message.reply_text(reply)
+
+    except Exception as e:
+        print(e)
+        await update.message.reply_text("❌ AI error")
+app.add_handler(CommandHandler("ai", ai))
+#==============================================================
 dispatcher.add_handler(
     CommandHandler("start", start)
 )
