@@ -1,6 +1,12 @@
 from datetime import datetime
 from database import get_tasks
+print("🚀 BOT FILE LOADED")
+import logging
 
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 # This function runs automatically via JobQueue
 async def check_tasks(context):
 
@@ -43,3 +49,7 @@ async def check_tasks(context):
 
             except Exception as e:
                 print("Reminder error:", e)
+                
+if __name__ == "__main__":
+    print("🚀 STARTING BOT...")
+    app.run_polling()
