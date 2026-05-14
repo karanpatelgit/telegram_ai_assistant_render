@@ -27,14 +27,15 @@ from database import (
     set_memory, get_memory, get_all_memory,
     get_analytics_summary, log_analytics
 )
-from ai import (
-    ask_anything, explain_simple, summarize_text,
-    decision_helper, viral_ideas, generate_caption,
-    study_plan, motivation_line
-)
+
 from scheduler import (
     check_tasks, check_revisions, check_exam_countdown,
     morning_briefing, night_summary
+)
+from ai import (
+    ask_anything, explain_simple, summarize_text,
+    decision_helper, viral_ideas, generate_caption,
+    study_plan, motivation_line, chat_with_history  # ← add this
 )
 # stores conversation history per user
 conversation_history = {}
