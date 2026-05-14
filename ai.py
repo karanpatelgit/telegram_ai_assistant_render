@@ -6,30 +6,29 @@ from dotenv import load_dotenv
 load_dotenv()
 HF_API_KEY = os.getenv("HF_API_KEY")
 
-HF_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-HEADERS = {"Authorization": f"Bearer {HF_API_KEY}"}
+HF_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {HF_API_KEY}",
+    "Content-Type": "application/json"
+}
 
 def _call(prompt: str, max_tokens=300) -> str:
-    for attempt in range(3):  # retry 3 times
+    for attempt in range(3):
         try:
             r = requests.post(
                 HF_URL,
                 headers=HEADERS,
                 json={
-                    "inputs": prompt,
-                    "parameters": {
-                        "max_new_tokens": max_tokens,
-                        "temperature": 0.7,
-                        "return_full_text": False
-                    }
+                    "model": "mistralai/Mistral-7B-Instruct-v0.2",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.7
                 },
                 timeout=60
             )
 
-            # model still loading
             if r.status_code == 503:
-                wait = r.json().get("estimated_time", 20)
-                time.sleep(min(wait, 20))
+                time.sleep(20)
                 continue
 
             if r.status_code != 200:
@@ -40,24 +39,14 @@ def _call(prompt: str, max_tokens=300) -> str:
                 continue
 
             data = r.json()
-
-            if isinstance(data, list):
-                return data[0].get("generated_text", "No response").strip()
-
-            if isinstance(data, dict):
-                if "error" in data:
-                    return f"❌ Model error: {data['error']}"
-                return str(data)
-
-            return str(data)
+            return data["choices"][0]["message"]["content"].strip()
 
         except requests.exceptions.Timeout:
-            return "❌ AI timed out. Try again in a moment."
+            return "❌ AI timed out. Try again."
         except Exception as e:
             return f"❌ AI Error: {e}"
 
-    return "❌ AI unavailable right now. Try again in 30 seconds."
-
+    return "❌ AI unavailable. Try again in 30 seconds."
 
 def ask_anything(question: str) -> str:
     prompt = f"[INST] Answer clearly and concisely:\n{question} [/INST]"
