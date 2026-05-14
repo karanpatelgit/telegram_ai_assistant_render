@@ -1,10 +1,11 @@
 import sqlite3
-from datetime import datetime
+import os
 
-conn = sqlite3.connect("assistant.db", check_same_thread=False)
+DB_PATH = os.getenv("DB_PATH", "/app/assistant.db")
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
-
-# ── TABLES ──────────────────────────────────────────────────
 
 cursor.executescript("""
 CREATE TABLE IF NOT EXISTS tasks (
@@ -70,8 +71,6 @@ CREATE TABLE IF NOT EXISTS analytics (
 """)
 conn.commit()
 
-# ── TASKS ────────────────────────────────────────────────────
-
 def add_task(task_date, task, task_time, category="general", recurring=None):
     cursor.execute(
         "INSERT INTO tasks (task_date, task, task_time, category, recurring) VALUES (?,?,?,?,?)",
@@ -100,12 +99,6 @@ def delete_task(task_id):
     cursor.execute("DELETE FROM tasks WHERE id=?", (task_id,))
     conn.commit()
 
-def get_recurring_tasks():
-    cursor.execute("SELECT * FROM tasks WHERE recurring IS NOT NULL")
-    return cursor.fetchall()
-
-# ── EXAMS ────────────────────────────────────────────────────
-
 def add_exam(subject, exam_date, exam_time, notes=""):
     cursor.execute(
         "INSERT INTO exams (subject,exam_date,exam_time,notes) VALUES (?,?,?,?)",
@@ -120,8 +113,6 @@ def get_exams():
 def delete_exam(exam_id):
     cursor.execute("DELETE FROM exams WHERE id=?", (exam_id,))
     conn.commit()
-
-# ── NOTES ────────────────────────────────────────────────────
 
 def add_note(note, tags=""):
     cursor.execute(
@@ -145,8 +136,6 @@ def delete_note(note_id):
     cursor.execute("DELETE FROM notes WHERE id=?", (note_id,))
     conn.commit()
 
-# ── REVISION ─────────────────────────────────────────────────
-
 def add_revision(topic, subject, days=3):
     from datetime import timedelta
     next_review = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
@@ -157,9 +146,7 @@ def add_revision(topic, subject, days=3):
     conn.commit()
 
 def get_due_revisions(date):
-    cursor.execute(
-        "SELECT * FROM revision WHERE next_review <= ?", (date,)
-    )
+    cursor.execute("SELECT * FROM revision WHERE next_review <= ?", (date,))
     return cursor.fetchall()
 
 def reschedule_revision(rev_id, next_interval):
@@ -175,8 +162,6 @@ def get_all_revisions():
     cursor.execute("SELECT * FROM revision ORDER BY next_review")
     return cursor.fetchall()
 
-# ── CONTENT ──────────────────────────────────────────────────
-
 def add_content(content_type, content, platform="", scheduled=""):
     cursor.execute(
         "INSERT INTO content (type,content,platform,scheduled) VALUES (?,?,?,?)",
@@ -190,12 +175,6 @@ def get_content(status=None):
     else:
         cursor.execute("SELECT * FROM content ORDER BY id DESC")
     return cursor.fetchall()
-
-def update_content_status(content_id, status):
-    cursor.execute("UPDATE content SET status=? WHERE id=?", (status, content_id))
-    conn.commit()
-
-# ── INBOX ────────────────────────────────────────────────────
 
 def add_inbox(text):
     cursor.execute(
@@ -214,8 +193,6 @@ def process_inbox_item(inbox_id):
     cursor.execute("UPDATE inbox SET processed=1 WHERE id=?", (inbox_id,))
     conn.commit()
 
-# ── MEMORY ───────────────────────────────────────────────────
-
 def set_memory(key, value):
     cursor.execute(
         "INSERT OR REPLACE INTO memory (key,value) VALUES (?,?)", (key, value)
@@ -230,8 +207,6 @@ def get_memory(key):
 def get_all_memory():
     cursor.execute("SELECT key,value FROM memory")
     return cursor.fetchall()
-
-# ── ANALYTICS ────────────────────────────────────────────────
 
 def log_analytics(event_type, event_data=""):
     cursor.execute(
@@ -248,3 +223,9 @@ def get_analytics_summary():
         ORDER BY count DESC
     """)
     return cursor.fetchall()
+
+def update_content_status(content_id, status):
+    cursor.execute("UPDATE content SET status=? WHERE id=?", (status, content_id))
+    conn.commit()
+
+from datetime import datetime
