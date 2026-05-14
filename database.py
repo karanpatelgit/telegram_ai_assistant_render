@@ -6,7 +6,6 @@ cursor = conn.cursor()
 # =========================
 # TASKS TABLE
 # =========================
-
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,7 +19,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 # =========================
 # NOTES TABLE
 # =========================
-
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,12 +41,7 @@ def add_task(task_date, task, task_time):
 
 def get_tasks():
     cursor.execute("""
-        SELECT
-            id,
-            task_date,
-            task,
-            task_time,
-            status
+        SELECT id, task_date, task, task_time, status
         FROM tasks
         ORDER BY task_date, task_time
     """)
@@ -80,7 +73,10 @@ def add_note(note):
     conn.commit()
 
 def get_notes():
-    cursor.execute("SELECT * FROM notes ORDER BY id DESC")
+    cursor.execute("""
+        SELECT * FROM notes
+        ORDER BY id DESC
+    """)
     return cursor.fetchall()
 
 def delete_note(note_id):
