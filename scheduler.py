@@ -472,20 +472,15 @@ async def reminder_job(context):
 # =========================
 
 if __name__ == "__main__":
+    print("🚀 Bot Running")
 
-    print("🚀 AI Assistant Running")
-
-    # Run reminder every 30 sec
     app.job_queue.run_repeating(
         reminder_job,
         interval=30,
         first=5
     )
-app.run_polling(
-    drop_pending_updates=True,
-    close_loop=False
-)
-    # Start bot
+
     app.run_polling(
         drop_pending_updates=True
+    )dates=True
     )
