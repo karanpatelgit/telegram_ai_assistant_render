@@ -475,10 +475,6 @@ async def main():
         drop_pending_updates=True
     )
 
-# =========================
-# START BOT
-# =========================
-
 if __name__ == "__main__":
 
     asyncio.run(main())
