@@ -1,6 +1,6 @@
 import asyncio
 import os
-
+import pytz
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -113,11 +113,15 @@ async def bulkadd(update, context):
 
 async def check_tasks():
 
-    now = datetime.now().strftime(
+    now = datetime.now(
+            pytz.timezone("Asia/Kolkata")
+        ).strftime(
         "%H:%M"
     )
 
-    today_date = datetime.now().strftime(
+    today_date = datetime.now(
+            pytz.timezone("Asia/Kolkata")
+        ).strftime(
         "%Y-%m-%d"
     )
 
