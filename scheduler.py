@@ -11,7 +11,8 @@ from database import get_tasks
 # LOAD ENV
 # =========================
 load_dotenv()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+CHAT_ID = os.getenv("CHAT_ID")
 
 print("🚀 BOT FILE LOADED")
 
