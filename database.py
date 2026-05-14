@@ -70,7 +70,49 @@ CREATE TABLE IF NOT EXISTS analytics (
 );
 """)
 conn.commit()
+#----------------Pharse natural language-----------------------
+def parse_natural_task(text: str, today: str) -> dict:
+    prompt = (
+        f"Today's date is {today}.\n"
+        f"Extract task details from this message: '{text}'\n\n"
+        f"Reply with ONLY a JSON object, nothing else. No explanation.\n"
+        f"Format:\n"
+        f'{{"task": "task name", "date": "YYYY-MM-DD", "time": "HH:MM", "category": "study/general/health/work"}}\n\n'
+        f"Rules:\n"
+        f"- 'tomorrow' = next day from today\n"
+        f"- 'morning' = 09:00, 'evening' = 18:00, 'night' = 21:00\n"
+        f"- if no time mentioned, use 09:00\n"
+        f"- if no date mentioned, use today\n"
+        f"- category: use 'study' for exam/study/revision, 'health' for gym/workout, 'work' for meeting/project, else 'general'\n"
+        f"- Return ONLY the JSON. No markdown, no explanation, no extra text."
+    )
+    
+    try:
+        r = requests.post(
+            GROQ_URL,
+            headers=HEADERS,
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 100,
+                "temperature": 0.1  # low temp for consistent JSON
+            },
+            timeout=15
+        )
 
+        if r.status_code != 200:
+            return {}
+
+        content = r.json()["choices"][0]["message"]["content"].strip()
+        
+        # clean any markdown if model adds it
+        content = content.replace("```json", "").replace("```", "").strip()
+        
+        import json
+        return json.loads(content)
+
+    except Exception as e:
+        return {}
 # ── TASKS ────────────────────────────────────────────────────
 
 def add_task(task_date, task, task_time, category="general", recurring=None):
