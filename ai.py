@@ -1,14 +1,27 @@
 import os
+import logging
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 HF_API_KEY = os.getenv("HF_API_KEY")
 
+if not HF_API_KEY:
+    logging.warning(
+        "HF_API_KEY is not set. AI features will return an error message "
+        "instead of calling the Hugging Face API."
+    )
+
 HF_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-HEADERS = {"Authorization": f"Bearer {HF_API_KEY}"}
+HEADERS = {"Authorization": f"Bearer {HF_API_KEY}"} if HF_API_KEY else {}
+
 
 def _call(prompt: str, max_tokens=300) -> str:
+    if not HF_API_KEY:
+        return (
+            "⚠️ AI features are unavailable: HF_API_KEY is not configured. "
+            "Please set the HF_API_KEY environment variable in your Railway service settings."
+        )
     try:
         r = requests.post(
             HF_URL,
