@@ -109,7 +109,47 @@ def done(update, context):
         update.message.reply_text(
             "❌ Use:\n/done TASK_ID"
         )
+#==============================
+import requests
+import os
 
+HF_API_KEY = os.getenv("HF_API_KEY")
+
+HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
+
+async def ai_reply(prompt: str):
+
+    url = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}"
+    }
+
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 200,
+            "temperature": 0.7,
+            "return_full_text": False
+        }
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        data = response.json()
+
+        # HF returns list format sometimes
+        if isinstance(data, list):
+            return data[0]["generated_text"]
+
+        # error handling
+        if "error" in data:
+            return f"⚠️ AI Error: {data['error']}"
+
+        return str(data)
+
+    except Exception as e:
+        return f"❌ AI Request Failed: {str(e)}"
 
 dispatcher.add_handler(
     CommandHandler("start", start)
