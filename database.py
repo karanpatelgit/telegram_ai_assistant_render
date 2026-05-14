@@ -34,7 +34,19 @@ def add_task(task_date, task, task_time):
     conn.commit()
 
 def get_tasks():
-    cursor.execute("SELECT * FROM tasks ORDER BY task_date, task_time")
+    cursor.execute(
+        """
+        SELECT
+            id,
+            task_date,
+            task,
+            task_time,
+            status
+        FROM tasks
+        ORDER BY task_date, task_time
+        """
+    )
+
     return cursor.fetchall()
 
 def complete_task(task_id):
