@@ -31,6 +31,11 @@ from scheduler import (
     check_tasks, check_revisions, check_exam_countdown,
     morning_briefing, night_summary
 )
+import os
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
+
+
 
 load_dotenv()
 TOKEN   = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -181,7 +186,19 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     elif data in menus:
         await query.edit_message_text(menus[data], reply_markup=back_markup)
+#------------------RENDER SPECIAL-----------------
+def keep_alive():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
 
+    server = HTTPServer(("0.0.0.0", int(os.environ.get("PORT", 10000))), Handler)
+    server.serve_forever()
+
+threading.Thread(target=keep_alive).start()
+#-------------------------------------------------------
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = update.message.text.replace("/add", "").strip()
