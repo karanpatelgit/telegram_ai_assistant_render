@@ -50,15 +50,7 @@ async def ai_reply(prompt: str):
 
     except Exception as e:
         return f"AI Error: {e}"
-#--------------- JobQUE---------------------
-job_queue = app.job_queue
 
-job_queue.run_repeating(
-    check_tasks,
-    interval=30,   # every 30 seconds
-    first=10,
-    chat_id=CHAT_ID
-)
 # ---------------- COMMANDS ----------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -178,9 +170,12 @@ def main():
     app.add_handler(CommandHandler("ai", ai))
 
     # JOB QUEUE (NO THREADING, NO SCHEDULER BUGS)
-    job_queue = app.job_queue
-    job_queue.run_repeating(check_tasks, interval=30, first=10)
-
+    app.job_queue.run_repeating(
+    check_tasks,
+    interval=30,
+    first=10,
+    chat_id=CHAT_ID
+)
     print("🚀 Bot Running...")
     app.run_polling(drop_pending_updates=True)
 
