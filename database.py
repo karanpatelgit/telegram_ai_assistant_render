@@ -12,7 +12,7 @@ conn = sqlite3.connect(
 cursor = conn.cursor()
 
 # =========================
-# CREATE TASKS TABLE
+# TASKS TABLE
 # =========================
 
 cursor.execute("""
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 """)
 
 # =========================
-# CREATE NOTES TABLE
+# NOTES TABLE
 # =========================
 
 cursor.execute("""
@@ -47,19 +47,47 @@ CREATE TABLE IF NOT EXISTS notes (
 
 """)
 
+# =========================
+# AI MEMORY TABLE
+# =========================
+
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS ai_memory (
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    user_message TEXT,
+
+    ai_reply TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+
+""")
+
 conn.commit()
 
 # =========================
 # ADD TASK
 # =========================
 
-def add_task(task_date, task, task_time):
+def add_task(
+    task_date,
+    task,
+    task_time
+):
 
     cursor.execute(
 
         """
         INSERT INTO tasks
-        (task_date, task, task_time, status)
+        (
+            task_date,
+            task,
+            task_time,
+            status
+        )
 
         VALUES (?, ?, ?, ?)
         """,
@@ -84,15 +112,17 @@ def get_tasks():
 
         """
         SELECT
-        id,
-        task_date,
-        task,
-        task_time,
-        status
+            id,
+            task_date,
+            task,
+            task_time,
+            status
 
         FROM tasks
 
-        ORDER BY task_date, task_time
+        ORDER BY
+            task_date ASC,
+            task_time ASC
         """
     )
 
@@ -123,6 +153,25 @@ def complete_task(task_id):
     conn.commit()
 
 # =========================
+# DELETE TASK
+# =========================
+
+def delete_task(task_id):
+
+    cursor.execute(
+
+        """
+        DELETE FROM tasks
+
+        WHERE id = ?
+        """,
+
+        (task_id,)
+    )
+
+    conn.commit()
+
+# =========================
 # ADD NOTE
 # =========================
 
@@ -131,7 +180,8 @@ def add_note(note):
     cursor.execute(
 
         """
-        INSERT INTO notes (note)
+        INSERT INTO notes
+        (note)
 
         VALUES (?)
         """,
@@ -150,9 +200,85 @@ def get_notes():
     cursor.execute(
 
         """
-        SELECT *
+        SELECT
+            id,
+            note
+
         FROM notes
+
         ORDER BY id DESC
+        """
+    )
+
+    return cursor.fetchall()
+
+# =========================
+# DELETE NOTE
+# =========================
+
+def delete_note(note_id):
+
+    cursor.execute(
+
+        """
+        DELETE FROM notes
+
+        WHERE id = ?
+        """,
+
+        (note_id,)
+    )
+
+    conn.commit()
+
+# =========================
+# SAVE AI CHAT
+# =========================
+
+def save_ai_chat(
+    user_message,
+    ai_reply
+):
+
+    cursor.execute(
+
+        """
+        INSERT INTO ai_memory
+        (
+            user_message,
+            ai_reply
+        )
+
+        VALUES (?, ?)
+        """,
+
+        (
+            user_message,
+            ai_reply
+        )
+    )
+
+    conn.commit()
+
+# =========================
+# GET AI MEMORY
+# =========================
+
+def get_ai_memory():
+
+    cursor.execute(
+
+        """
+        SELECT
+            user_message,
+            ai_reply,
+            created_at
+
+        FROM ai_memory
+
+        ORDER BY id DESC
+
+        LIMIT 20
         """
     )
 
