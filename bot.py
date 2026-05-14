@@ -1,6 +1,6 @@
 import os
 import asyncio
-import logging
+
 from datetime import datetime, time as dtime
 
 import pytz
@@ -32,6 +32,9 @@ from scheduler import (
     check_tasks, check_revisions, check_exam_countdown,
     morning_briefing, night_summary
 )
+import logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("telegram").setLevel(logging.WARNING)
 
 load_dotenv()
 
@@ -135,8 +138,11 @@ async def quick_capture(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ───────────────── MAIN ─────────────────
 def main():
-    app = Application.builder().token(TOKEN).build()
-
+    app = (
+    Application.builder()
+    .token(TOKEN)
+    .build()
+        )
     app.add_error_handler(error_handler)
 
     app.add_handler(CommandHandler("start", start))
