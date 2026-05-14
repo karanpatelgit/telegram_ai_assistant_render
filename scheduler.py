@@ -472,7 +472,8 @@ async def reminder_job(context):
 # =========================
 
 if __name__ == "__main__":
-    print("🚀 Bot Running")
+
+    print("🚀 AI Assistant Running")
 
     app.job_queue.run_repeating(
         reminder_job,
@@ -481,6 +482,6 @@ if __name__ == "__main__":
     )
 
     app.run_polling(
-        drop_pending_updates=True
-    )dates=True
-    
+        drop_pending_updates=True,
+        close_loop=False
+    )
