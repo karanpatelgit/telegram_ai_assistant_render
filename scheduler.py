@@ -1,113 +1,142 @@
 import os
-import logging
 import asyncio
+import logging
 from datetime import datetime
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.error import Conflict
-from telegram.ext import Application, CommandHandler, ContextTypes
-from database import get_tasks
 import pytz
+from database import get_tasks, get_due_revisions, get_exams, reschedule_revision
 
+load_dotenv()
+CHAT_ID = os.getenv("CHAT_ID")
 ist = pytz.timezone("Asia/Kolkata")
 
-# =========================
-# LOAD ENV
-# =========================
-load_dotenv()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-print("🚀 BOT FILE LOADED")
+def now_ist():
+    return datetime.now(ist)
 
-# =========================
-# LOGGING
-# =========================
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+# ── TASK REMINDERS ───────────────────────────────────────────
 
-# =========================
-# ERROR HANDLER
-# =========================
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    if isinstance(context.error, Conflict):
-        logging.warning("⚠️ Conflict error caught — another instance may still be shutting down. Retrying...")
-        await asyncio.sleep(5)  # wait and let the old instance die
-    else:
-        logging.error(f"Unhandled error: {context.error}")
+async def check_tasks(context):
+    now = now_ist()
+    now_time = now.strftime("%H:%M")
+    today  = now.strftime("%Y-%m-%d")
+    tasks  = get_tasks(date=today)
 
-# =========================
-# REMINDER FUNCTION
-# =========================
-async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
-    now_time = datetime.now(ist).strftime("%H:%M")
-    today_date = datetime.now(ist).strftime("%Y-%m-%d")
-    tasks = get_tasks()
-
-    for task in tasks:
-        task_id = task[0]
-        task_date = task[1]
-        task_name = task[2]
-        task_time = task[3]
-        status = task[4]
-
-        if (
-            task_date == today_date and
-            task_time == now_time and
-            status != "Done"
-        ):
-            message = (
-                "⏰ Reminder\n\n"
-                f"📅 Date: {task_date}\n"
-                f"📝 Task: {task_name}\n"
-                f"🆔 ID: {task_id}\n\n"
-                f"/done {task_id}"
+    for t in tasks:
+        task_id, task_date, task, task_time, status, category = t
+        if task_time == now_time and status != "Done":
+            emoji = "📚" if category == "study" else "📅"
+            await context.bot.send_message(
+                chat_id=CHAT_ID,
+                text=(
+                    f"{emoji} *Reminder*\n\n"
+                    f"📝 {task}\n"
+                    f"🏷 Category: {category}\n"
+                    f"🆔 ID: {task_id}\n\n"
+                    f"Mark done: /done {task_id}"
+                ),
+                parse_mode="Markdown"
             )
-            try:
-                await context.bot.send_message(chat_id=CHAT_ID, text=message)
-                print(f"✅ Reminder sent: {task_name}")
-            except Exception as e:
-                print("Reminder error:", e)
 
-# =========================
-# START COMMAND
-# =========================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Bot is running")
+# ── REVISION REMINDERS ───────────────────────────────────────
 
-# =========================
-# POST INIT — runs after app builds, before polling
-# =========================
-async def post_init(application: Application):
-    # Force-clear any lingering sessions on Telegram's side
-    await application.bot.delete_webhook(drop_pending_updates=True)
-    logging.info("✅ Webhook deleted and pending updates dropped")
-    await asyncio.sleep(3)  # give Telegram time to release the old session
+async def check_revisions(context):
+    today = now_ist().strftime("%Y-%m-%d")
+    due = get_due_revisions(today)
 
-# =========================
-# MAIN
-# =========================
-if __name__ == "__main__":
-    print("🚀 BOT STARTED")
+    for r in due:
+        rev_id, topic, subject, next_review, interval = r
+        next_interval = min(interval * 2, 30)  # spaced repetition: double interval, cap at 30
+        reschedule_revision(rev_id, next_interval)
+        await context.bot.send_message(
+            chat_id=CHAT_ID,
+            text=(
+                f"🧠 *Spaced Repetition Reminder*\n\n"
+                f"📖 Topic: {topic}\n"
+                f"📚 Subject: {subject}\n\n"
+                f"Next review scheduled in {next_interval} days ✅"
+            ),
+            parse_mode="Markdown"
+        )
 
-    app = (
-        Application.builder()
-        .token(TOKEN)
-        .post_init(post_init)   # ✅ runs cleanup before polling starts
-        .build()
+# ── EXAM COUNTDOWN ───────────────────────────────────────────
+
+async def check_exam_countdown(context):
+    today = now_ist()
+    exams = get_exams()
+
+    for exam in exams:
+        exam_id, subject, exam_date, exam_time, notes = exam
+        try:
+            delta = (datetime.strptime(exam_date, "%Y-%m-%d") - today.replace(tzinfo=None)).days
+        except:
+            continue
+
+        if delta in [7, 3, 1]:
+            await context.bot.send_message(
+                chat_id=CHAT_ID,
+                text=(
+                    f"⚠️ *Exam Countdown*\n\n"
+                    f"📚 Subject: {subject}\n"
+                    f"📅 Date: {exam_date} at {exam_time}\n"
+                    f"⏳ *{delta} day(s) remaining!*\n\n"
+                    f"💪 Start revising now!"
+                ),
+                parse_mode="Markdown"
+            )
+
+# ── MORNING BRIEFING (7:00 AM IST) ──────────────────────────
+
+async def morning_briefing(context):
+    from ai import motivation_line
+    today = now_ist().strftime("%Y-%m-%d")
+    tasks = get_tasks(date=today)
+    exams = get_exams()
+
+    task_lines = "\n".join(
+        [f"  • {t[3]} — {t[2]} [{t[5]}]" for t in tasks]
+    ) or "  No tasks today 🎉"
+
+    upcoming_exams = [
+        e for e in exams
+        if (datetime.strptime(e[2], "%Y-%m-%d") - datetime.now()).days <= 7
+    ]
+    exam_lines = "\n".join(
+        [f"  • {e[1]} on {e[2]}" for e in upcoming_exams]
+    ) or "  None this week"
+
+    quote = motivation_line()
+
+    await context.bot.send_message(
+        chat_id=CHAT_ID,
+        text=(
+            f"🌅 *Good Morning! Daily Briefing*\n"
+            f"📅 {today}\n\n"
+            f"📋 *Today's Tasks:*\n{task_lines}\n\n"
+            f"🎓 *Upcoming Exams:*\n{exam_lines}\n\n"
+            f"💬 *Quote of the Day:*\n_{quote}_"
+        ),
+        parse_mode="Markdown"
     )
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_error_handler(error_handler)  # ✅ handles Conflict gracefully
+# ── NIGHT SUMMARY (10:00 PM IST) ────────────────────────────
 
-    app.job_queue.run_repeating(
-        check_tasks,
-        interval=30,
-        first=10,
-    )
+async def night_summary(context):
+    today = now_ist().strftime("%Y-%m-%d")
+    tasks = get_tasks(date=today)
 
-    app.run_polling(
-        drop_pending_updates=True,
-        allowed_updates=Update.ALL_TYPES,
+    done    = [t for t in tasks if t[4] == "Done"]
+    pending = [t for t in tasks if t[4] != "Done"]
+
+    done_lines    = "\n".join([f"  ✅ {t[2]}" for t in done])    or "  None"
+    pending_lines = "\n".join([f"  ⏳ {t[2]}" for t in pending]) or "  None"
+
+    await context.bot.send_message(
+        chat_id=CHAT_ID,
+        text=(
+            f"🌙 *Night Summary*\n\n"
+            f"✅ *Completed ({len(done)}):*\n{done_lines}\n\n"
+            f"⏳ *Pending ({len(pending)}):*\n{pending_lines}\n\n"
+            f"Rest well, grind tomorrow! 💪"
+        ),
+        parse_mode="Markdown"
     )
