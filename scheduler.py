@@ -241,6 +241,49 @@ async def delnote(update, context):
             "❌ Use:\n/delnote NOTE_ID"
         )
 
+# =========================
+# HANDLERS
+# =========================
+
+app.add_handler(
+    CommandHandler("start", start)
+)
+
+app.add_handler(
+    CommandHandler("today", today)
+)
+
+app.add_handler(
+    CommandHandler("add", add)
+)
+
+app.add_handler(
+    CommandHandler("bulkadd", bulkadd)
+)
+
+app.add_handler(
+    CommandHandler("done", done)
+)
+
+app.add_handler(
+    CommandHandler("note", note)
+)
+
+app.add_handler(
+    CommandHandler("notes", notes)
+)
+
+# =========================
+# NEW DELETE HANDLERS
+# =========================
+
+app.add_handler(
+    CommandHandler("deltask", deltask)
+)
+
+app.add_handler(
+    CommandHandler("delnote", delnote)
+)
 
 # =========================
 # SCHEDULER LOOP
