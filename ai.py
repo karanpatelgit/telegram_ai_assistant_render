@@ -17,7 +17,7 @@ def _call(prompt: str, max_tokens=300) -> str:
             GROQ_URL,
             headers=HEADERS,
             json={
-                "model": "llama3-8b-8192",  # free & fast
+                "model":  "llama-3.1-8b-instant",  # free & fast
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": max_tokens,
                 "temperature": 0.7
