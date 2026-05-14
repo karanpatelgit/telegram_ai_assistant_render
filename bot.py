@@ -66,28 +66,6 @@ async def post_init(application: Application):
     logging.info("✅ Bot initialized")
 
 
-#========================Testings commands ================
-async def cmd_testai(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import requests
-    key = os.getenv("HF_API_KEY")
-    
-    if not key:
-        await update.message.reply_text("❌ HF_API_KEY is missing from environment variables!")
-        return
-    
-    await update.message.reply_text(f"🔑 Key found: {key[:8]}...")
-    
-    r = requests.post(
-        "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta",
-        headers={"Authorization": f"Bearer {key}"},
-        json={"inputs": "Say hello", "parameters": {"max_new_tokens": 20}},
-        timeout=30
-    )
-    
-    await update.message.reply_text(f"Status: {r.status_code}\nResponse: {r.text[:300]}")
-
-app.add_handler(CommandHandler("testai", cmd_testai))
-
 # ════════════════════════════════════════════════════════════
 # COMMANDS
 # ════════════════════════════════════════════════════════════
@@ -521,9 +499,7 @@ def main():
 
         app.add_error_handler(error_handler)
 
-        #-----------------------------testing handler
-        app.add_handler(CommandHandler("testai", cmd_testai))
-
+        
         # ── handlers ──
         app.add_handler(CommandHandler("start",        start))
         app.add_handler(CallbackQueryHandler(menu_callback))
