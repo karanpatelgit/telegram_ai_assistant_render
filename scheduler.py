@@ -83,15 +83,13 @@ async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
 # MAIN
 # =========================
 if __name__ == "__main__":
+    print("🚀 BOT STARTED")
 
-    print("🚀 STARTING BOT...")
-
-    # IMPORTANT: JOB QUEUE SETUP
     app.job_queue.run_repeating(
         check_tasks,
         interval=30,
         first=10,
-        chat_id=os.getenv("CHAT_ID")
+        chat_id=CHAT_ID
     )
 
     app.run_polling()
