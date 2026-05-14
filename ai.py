@@ -39,6 +39,40 @@ def _call(prompt: str, max_tokens=300) -> str:
 
 def ask_anything(question: str) -> str:
     return _call(f"Answer clearly and concisely:\n{question}")
+def chat_with_history(messages: list) -> str:
+    try:
+        r = requests.post(
+            GROQ_URL,
+            headers=HEADERS,
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a brilliant, friendly AI assistant. "
+                            "You remember the full conversation context. "
+                            "Be conversational, helpful, and concise. "
+                            "Like a smart friend, not a textbook."
+                        )
+                    }
+                ] + messages,
+                "max_tokens": 500,
+                "temperature": 0.7
+            },
+            timeout=30
+        )
+
+        if r.status_code != 200:
+            return f"❌ Error {r.status_code}: {r.text[:200]}"
+
+        data = r.json()
+        return data["choices"][0]["message"]["content"].strip()
+
+    except requests.exceptions.Timeout:
+        return "❌ AI timed out. Try again."
+    except Exception as e:
+        return f"❌ Error: {e}"
 
 def explain_simple(topic: str) -> str:
     return _call(f"Explain '{topic}' like I'm 12 years old, in simple bullet points.")
