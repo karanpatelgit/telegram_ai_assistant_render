@@ -2,6 +2,16 @@ import asyncio
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+from database import (
+    add_task,
+    get_tasks,
+    complete_task,
+    add_note,
+    get_notes,
+    delete_task,
+    delete_note
+)
+
 
 from telegram import Bot
 from telegram.ext import (
@@ -9,13 +19,7 @@ from telegram.ext import (
     CommandHandler
 )
 
-from database import (
-    add_task,
-    get_tasks,
-    complete_task,
-    add_note,
-    get_notes
-)
+
 
 # =========================
 # LOAD ENV
@@ -179,6 +183,63 @@ async def check_tasks():
                     "Reminder Error:",
                     e
                 )
+# =========================
+# DELETE TASK COMMAND
+# =========================
+
+async def deltask(update, context):
+
+    try:
+
+        task_id = int(
+            update.message.text.replace(
+                "/deltask ",
+                ""
+            )
+        )
+
+        delete_task(task_id)
+
+        await update.message.reply_text(
+            f"🗑 Task {task_id} Deleted"
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Use:\n/deltask TASK_ID"
+        )
+
+# =========================
+# DELETE NOTE COMMAND
+# =========================
+
+async def delnote(update, context):
+
+    try:
+
+        note_id = int(
+            update.message.text.replace(
+                "/delnote ",
+                ""
+            )
+        )
+
+        delete_note(note_id)
+
+        await update.message.reply_text(
+            f"🗑 Note {note_id} Deleted"
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Use:\n/delnote NOTE_ID"
+        )
 
 
 # =========================
