@@ -2,11 +2,8 @@ import os
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
-
 from telegram.ext import Application, CommandHandler, ContextTypes
-
 from database import get_tasks
-
 import pytz
 
 ist = pytz.timezone("Asia/Kolkata")
@@ -15,10 +12,8 @@ ist = pytz.timezone("Asia/Kolkata")
 # LOAD ENV
 # =========================
 load_dotenv()
-
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-
 print("🚀 BOT FILE LOADED")
 
 # =========================
@@ -35,7 +30,7 @@ logging.basicConfig(
 app = Application.builder().token(TOKEN).build()
 
 # =========================
-# START COMMAND (optional)
+# START COMMAND
 # =========================
 async def start(update, context):
     await update.message.reply_text("🤖 Bot is running")
@@ -46,14 +41,11 @@ app.add_handler(CommandHandler("start", start))
 # REMINDER FUNCTION
 # =========================
 async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
-
     now_time = datetime.now(ist).strftime("%H:%M")
     today_date = datetime.now(ist).strftime("%Y-%m-%d")
-
     tasks = get_tasks()
 
     for task in tasks:
-
         task_id = task[0]
         task_date = task[1]
         task_name = task[2]
@@ -65,7 +57,6 @@ async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
             task_time == now_time and
             status != "Done"
         ):
-
             message = (
                 "⏰ Reminder\n\n"
                 f"📅 Date: {task_date}\n"
@@ -73,15 +64,12 @@ async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
                 f"🆔 ID: {task_id}\n\n"
                 f"/done {task_id}"
             )
-
             try:
                 await context.bot.send_message(
-                    chat_id=context.job.chat_id,
+                    chat_id=CHAT_ID,  # ✅ Fixed: use env var directly
                     text=message
                 )
-
                 print(f"✅ Reminder sent: {task_name}")
-
             except Exception as e:
                 print("Reminder error:", e)
 
@@ -90,12 +78,11 @@ async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
 # =========================
 if __name__ == "__main__":
     print("🚀 BOT STARTED")
-
     app.job_queue.run_repeating(
         check_tasks,
         interval=30,
         first=10,
-        chat_id=CHAT_ID
     )
+    app.run_polling(drop_pending_updates=True)  # ✅ Fixed: drop stale updates on start
 
     app.run_polling()
