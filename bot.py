@@ -1,194 +1,179 @@
-from telegram.ext import (
-    Updater,
-    CommandHandler
-)
-
-from dotenv import load_dotenv
 import os
+import requests
+from datetime import datetime
+from dotenv import load_dotenv
+
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes
+)
 
 from database import (
-    add_task,
-    get_tasks,
-    complete_task
+    add_task, get_tasks, complete_task,
+    add_note, get_notes,
+    delete_task, delete_note
 )
+
+# ---------------- ENV ----------------
 
 load_dotenv()
 
-TOKEN = os.getenv(
-    "TELEGRAM_BOT_TOKEN"
-)
-
-updater = Updater(
-    TOKEN,
-    use_context=True
-)
-
-dispatcher = updater.dispatcher
-
-
-def start(update, context):
-
-    update.message.reply_text(
-        "🤖 AI Assistant Started"
-    )
-
-
-def today(update, context):
-
-    tasks = get_tasks()
-
-    if not tasks:
-
-        update.message.reply_text(
-            "🎉 No Tasks"
-        )
-
-        return
-
-    msg = "📅 Tasks\n\n"
-
-    for task in tasks:
-
-        msg += (
-            f"ID: {task[0]}\n"
-            f"Task: {task[1]}\n"
-            f"Time: {task[2]}\n"
-            f"Status: {task[3]}\n\n"
-        )
-
-    update.message.reply_text(msg)
-
-
-def add(update, context):
-
-    try:
-
-        text = update.message.text.replace(
-            "/add ",
-            ""
-        )
-
-        parts = text.split(",")
-
-        task = parts[0].strip()
-
-        time = parts[1].strip()
-
-        add_task(task, time)
-
-        update.message.reply_text(
-            "✅ Task Added"
-        )
-
-    except:
-
-        update.message.reply_text(
-            "❌ Format:\n/add Task, HH:MM"
-        )
-
-
-def done(update, context):
-
-    try:
-
-        task_id = int(
-            update.message.text.replace(
-                "/done ",
-                ""
-            )
-        )
-
-        complete_task(task_id)
-
-        update.message.reply_text(
-            "✅ Task Completed"
-        )
-
-    except:
-
-        update.message.reply_text(
-            "❌ Use:\n/done TASK_ID"
-        )
-#==============================
-import requests
-import os
-
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 HF_API_KEY = os.getenv("HF_API_KEY")
 
-HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
+# ---------------- AI (HF FREE) ----------------
 
 async def ai_reply(prompt: str):
+    url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
 
-    url = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
-
-    headers = {
-        "Authorization": f"Bearer {HF_API_KEY}"
-    }
+    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
 
     payload = {
         "inputs": prompt,
         "parameters": {
             "max_new_tokens": 200,
-            "temperature": 0.7,
-            "return_full_text": False
+            "temperature": 0.7
         }
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
-        data = response.json()
+        r = requests.post(url, headers=headers, json=payload, timeout=20)
+        data = r.json()
 
-        # HF returns list format sometimes
         if isinstance(data, list):
             return data[0]["generated_text"]
-
-        # error handling
-        if "error" in data:
-            return f"⚠️ AI Error: {data['error']}"
 
         return str(data)
 
     except Exception as e:
-        return f"❌ AI Request Failed: {str(e)}"
-#==================================================        
-async def ai(update, context):
+        return f"AI Error: {e}"
 
+# ---------------- COMMANDS ----------------
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🤖 Bot Ready!")
+
+# -------- TASKS --------
+
+async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        user_text = update.message.text.replace("/ai", "").strip()
+        text = update.message.text.replace("/add ", "")
+        date, task, time = [x.strip() for x in text.split(",")]
 
-        if not user_text:
-            await update.message.reply_text(
-                "❌ Use: /ai your question"
+        add_task(date, task, time)
+
+        await update.message.reply_text(f"✅ Added:\n{date} | {task} | {time}")
+
+    except:
+        await update.message.reply_text("Use:\n/add YYYY-MM-DD, Task, HH:MM")
+
+async def today(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tasks = get_tasks()
+
+    if not tasks:
+        await update.message.reply_text("No tasks")
+        return
+
+    msg = "📅 Tasks:\n\n"
+    for t in tasks:
+        msg += f"{t[0]} | {t[1]} | {t[2]} | {t[3]} | {t[4]}\n"
+
+    await update.message.reply_text(msg)
+
+async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        task_id = int(update.message.text.replace("/done ", ""))
+        complete_task(task_id)
+        await update.message.reply_text("✅ Done")
+    except:
+        await update.message.reply_text("Use /done ID")
+
+async def deltask(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        task_id = int(update.message.text.replace("/deltask ", ""))
+        delete_task(task_id)
+        await update.message.reply_text("🗑 Deleted task")
+    except:
+        await update.message.reply_text("Use /deltask ID")
+
+# -------- NOTES --------
+
+async def note(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.replace("/note ", "")
+    add_note(text)
+    await update.message.reply_text("📝 Saved")
+
+async def notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = get_notes()
+
+    if not data:
+        await update.message.reply_text("No notes")
+        return
+
+    msg = "📝 Notes:\n\n"
+    for n in data:
+        msg += f"{n[0]}. {n[1]}\n"
+
+    await update.message.reply_text(msg)
+
+async def delnote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        note_id = int(update.message.text.replace("/delnote ", ""))
+        delete_note(note_id)
+        await update.message.reply_text("🗑 Deleted note")
+    except:
+        await update.message.reply_text("Use /delnote ID")
+
+# -------- AI --------
+
+async def ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.replace("/ai ", "")
+    reply = await ai_reply(text)
+    await update.message.reply_text(reply)
+
+# ---------------- REMINDER (JOBQUEUE - CLEAN) ----------------
+
+async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
+    now = datetime.now().strftime("%H:%M")
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    tasks = get_tasks()
+
+    for t in tasks:
+        task_id, date, task, time, status = t
+
+        if date == today and time == now and status != "Done":
+            await context.bot.send_message(
+                chat_id=context.job.chat_id,
+                text=f"⏰ Reminder\n{task}\nID: {task_id}"
             )
-            return
 
-        reply = await ai_reply(user_text)
+# ---------------- MAIN ----------------
 
-        await update.message.reply_text(reply)
+def main():
+    app = Application.builder().token(TOKEN).build()
 
-    except Exception as e:
-        print(e)
-        await update.message.reply_text("❌ AI error")
-app.add_handler(CommandHandler("ai", ai))
-#==============================================================
-dispatcher.add_handler(
-    CommandHandler("start", start)
-)
+    # commands
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("add", add))
+    app.add_handler(CommandHandler("today", today))
+    app.add_handler(CommandHandler("done", done))
+    app.add_handler(CommandHandler("deltask", deltask))
 
-dispatcher.add_handler(
-    CommandHandler("today", today)
-)
+    app.add_handler(CommandHandler("note", note))
+    app.add_handler(CommandHandler("notes", notes))
+    app.add_handler(CommandHandler("delnote", delnote))
 
-dispatcher.add_handler(
-    CommandHandler("add", add)
-)
+    app.add_handler(CommandHandler("ai", ai))
 
-dispatcher.add_handler(
-    CommandHandler("done", done)
-)
+    # JOB QUEUE (NO THREADING, NO SCHEDULER BUGS)
+    job_queue = app.job_queue
+    job_queue.run_repeating(check_tasks, interval=30, first=10)
 
-print("🤖 Bot Running...")
+    print("🚀 Bot Running...")
+    app.run_polling(drop_pending_updates=True)
 
-updater.start_polling()
-
-updater.idle()
+if __name__ == "__main__":
+    main()
