@@ -1,14 +1,45 @@
-from datetime import datetime
-from database import get_tasks
-print("🚀 BOT FILE LOADED")
+import os
 import logging
+from datetime import datetime
+from dotenv import load_dotenv
 
+from telegram.ext import Application, CommandHandler, ContextTypes
+
+from database import get_tasks
+
+# =========================
+# LOAD ENV
+# =========================
+load_dotenv()
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+print("🚀 BOT FILE LOADED")
+
+# =========================
+# LOGGING
+# =========================
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
-# This function runs automatically via JobQueue
-async def check_tasks(context):
+
+# =========================
+# CREATE APP
+# =========================
+app = Application.builder().token(TOKEN).build()
+
+# =========================
+# START COMMAND (optional)
+# =========================
+async def start(update, context):
+    await update.message.reply_text("🤖 Bot is running")
+
+app.add_handler(CommandHandler("start", start))
+
+# =========================
+# REMINDER FUNCTION
+# =========================
+async def check_tasks(context: ContextTypes.DEFAULT_TYPE):
 
     now_time = datetime.now().strftime("%H:%M")
     today_date = datetime.now().strftime("%Y-%m-%d")
@@ -23,7 +54,6 @@ async def check_tasks(context):
         task_time = task[3]
         status = task[4]
 
-        # Only today's pending tasks
         if (
             task_date == today_date and
             task_time == now_time and
@@ -35,7 +65,6 @@ async def check_tasks(context):
                 f"📅 Date: {task_date}\n"
                 f"📝 Task: {task_name}\n"
                 f"🆔 ID: {task_id}\n\n"
-                "Mark done:\n"
                 f"/done {task_id}"
             )
 
@@ -49,7 +78,20 @@ async def check_tasks(context):
 
             except Exception as e:
                 print("Reminder error:", e)
-                
+
+# =========================
+# MAIN
+# =========================
 if __name__ == "__main__":
+
     print("🚀 STARTING BOT...")
+
+    # IMPORTANT: JOB QUEUE SETUP
+    app.job_queue.run_repeating(
+        check_tasks,
+        interval=30,
+        first=10,
+        chat_id=os.getenv("CHAT_ID")
+    )
+
     app.run_polling()
