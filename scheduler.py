@@ -1,7 +1,15 @@
 import asyncio
 import os
+
 from datetime import datetime
 from dotenv import load_dotenv
+
+from telegram import Bot
+from telegram.ext import (
+    Application,
+    CommandHandler
+)
+
 from database import (
     add_task,
     get_tasks,
@@ -11,15 +19,6 @@ from database import (
     delete_task,
     delete_note
 )
-
-
-from telegram import Bot
-from telegram.ext import (
-    Application,
-    CommandHandler
-)
-
-
 
 # =========================
 # LOAD ENV
@@ -44,6 +43,107 @@ bot = Bot(token=TOKEN)
 app = Application.builder().token(TOKEN).build()
 
 # =========================
+# START COMMAND
+# =========================
+
+async def start(update, context):
+
+    msg = (
+
+        "🤖 AI Assistant Running\n\n"
+
+        "Commands:\n"
+
+        "/add DATE, TASK, TIME\n"
+        "/bulkadd\n"
+        "/today\n"
+        "/done ID\n"
+        "/deltask ID\n"
+        "/note TEXT\n"
+        "/notes\n"
+        "/delnote ID"
+    )
+
+    await update.message.reply_text(msg)
+
+# =========================
+# TODAY TASKS
+# =========================
+
+async def today(update, context):
+
+    tasks = get_tasks()
+
+    if not tasks:
+
+        await update.message.reply_text(
+            "🎉 No Tasks"
+        )
+
+        return
+
+    msg = "📅 Tasks\n\n"
+
+    for task in tasks:
+
+        msg += (
+
+            f"🆔 {task[0]}\n"
+            f"📅 {task[1]}\n"
+            f"📝 {task[2]}\n"
+            f"⏰ {task[3]}\n"
+            f"📌 {task[4]}\n\n"
+        )
+
+    await update.message.reply_text(msg)
+
+# =========================
+# ADD TASK
+# =========================
+
+async def add(update, context):
+
+    try:
+
+        text = update.message.text.replace(
+            "/add ",
+            ""
+        )
+
+        parts = text.split(",")
+
+        task_date = parts[0].strip()
+
+        task = parts[1].strip()
+
+        task_time = parts[2].strip()
+
+        add_task(
+            task_date,
+            task,
+            task_time
+        )
+
+        await update.message.reply_text(
+
+            f"✅ Task Added\n\n"
+
+            f"📅 {task_date}\n"
+            f"📝 {task}\n"
+            f"⏰ {task_time}"
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+
+            "❌ Format:\n"
+            "/add 2026-05-20, Study, 18:00"
+        )
+
+# =========================
 # BULK ADD TASKS
 # =========================
 
@@ -63,9 +163,6 @@ async def bulkadd(update, context):
         for line in lines:
 
             parts = line.split(",")
-
-            # FORMAT:
-            # 2026-05-20, Study, 18:00
 
             if len(parts) != 3:
                 continue
@@ -89,6 +186,7 @@ async def bulkadd(update, context):
         if added_tasks:
 
             msg = (
+
                 "📅 Multiple Tasks Added\n\n"
                 + "\n".join(added_tasks)
             )
@@ -98,7 +196,7 @@ async def bulkadd(update, context):
         else:
 
             await update.message.reply_text(
-                "❌ No valid tasks found"
+                "❌ No valid tasks"
             )
 
     except Exception as e:
@@ -106,9 +204,141 @@ async def bulkadd(update, context):
         print(e)
 
         await update.message.reply_text(
-            "❌ Error adding tasks"
+            "❌ Bulk add failed"
         )
 
+# =========================
+# COMPLETE TASK
+# =========================
+
+async def done(update, context):
+
+    try:
+
+        task_id = int(
+
+            update.message.text.replace(
+                "/done ",
+                ""
+            )
+        )
+
+        complete_task(task_id)
+
+        await update.message.reply_text(
+            f"✅ Task {task_id} Completed"
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Use:\n/done TASK_ID"
+        )
+
+# =========================
+# SAVE NOTE
+# =========================
+
+async def note(update, context):
+
+    text = update.message.text.replace(
+        "/note ",
+        ""
+    )
+
+    add_note(text)
+
+    await update.message.reply_text(
+        "📝 Note Saved"
+    )
+
+# =========================
+# SHOW NOTES
+# =========================
+
+async def notes(update, context):
+
+    all_notes = get_notes()
+
+    if not all_notes:
+
+        await update.message.reply_text(
+            "❌ No Notes"
+        )
+
+        return
+
+    msg = "📝 Notes\n\n"
+
+    for item in all_notes:
+
+        msg += (
+            f"{item[0]}. {item[1]}\n\n"
+        )
+
+    await update.message.reply_text(msg)
+
+# =========================
+# DELETE TASK
+# =========================
+
+async def deltask(update, context):
+
+    try:
+
+        task_id = int(
+
+            update.message.text.replace(
+                "/deltask ",
+                ""
+            )
+        )
+
+        delete_task(task_id)
+
+        await update.message.reply_text(
+            f"🗑 Task {task_id} Deleted"
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Use:\n/deltask TASK_ID"
+        )
+
+# =========================
+# DELETE NOTE
+# =========================
+
+async def delnote(update, context):
+
+    try:
+
+        note_id = int(
+
+            update.message.text.replace(
+                "/delnote ",
+                ""
+            )
+        )
+
+        delete_note(note_id)
+
+        await update.message.reply_text(
+            f"🗑 Note {note_id} Deleted"
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await update.message.reply_text(
+            "❌ Use:\n/delnote NOTE_ID"
+        )
 
 # =========================
 # REMINDER ENGINE
@@ -155,13 +385,9 @@ async def check_tasks():
 
                 f"⏰ Reminder\n\n"
 
-                f"📅 Date: {task_date}\n"
-
-                f"📝 Task: {task_name}\n"
-
-                f"🆔 ID: {task_id}\n\n"
-
-                f"Complete using:\n"
+                f"📅 {task_date}\n"
+                f"📝 {task_name}\n"
+                f"🆔 {task_id}\n\n"
 
                 f"/done {task_id}"
             )
@@ -174,72 +400,24 @@ async def check_tasks():
                 )
 
                 print(
-                    f"✅ Reminder Sent: {task_name}"
+                    f"Reminder Sent: {task_name}"
                 )
 
             except Exception as e:
 
-                print(
-                    "Reminder Error:",
-                    e
-                )
-# =========================
-# DELETE TASK COMMAND
-# =========================
-
-async def deltask(update, context):
-
-    try:
-
-        task_id = int(
-            update.message.text.replace(
-                "/deltask ",
-                ""
-            )
-        )
-
-        delete_task(task_id)
-
-        await update.message.reply_text(
-            f"🗑 Task {task_id} Deleted"
-        )
-
-    except Exception as e:
-
-        print(e)
-
-        await update.message.reply_text(
-            "❌ Use:\n/deltask TASK_ID"
-        )
+                print(e)
 
 # =========================
-# DELETE NOTE COMMAND
+# SCHEDULER LOOP
 # =========================
 
-async def delnote(update, context):
+async def scheduler_loop():
 
-    try:
+    while True:
 
-        note_id = int(
-            update.message.text.replace(
-                "/delnote ",
-                ""
-            )
-        )
+        await check_tasks()
 
-        delete_note(note_id)
-
-        await update.message.reply_text(
-            f"🗑 Note {note_id} Deleted"
-        )
-
-    except Exception as e:
-
-        print(e)
-
-        await update.message.reply_text(
-            "❌ Use:\n/delnote NOTE_ID"
-        )
+        await asyncio.sleep(30)
 
 # =========================
 # HANDLERS
@@ -273,10 +451,6 @@ app.add_handler(
     CommandHandler("notes", notes)
 )
 
-# =========================
-# NEW DELETE HANDLERS
-# =========================
-
 app.add_handler(
     CommandHandler("deltask", deltask)
 )
@@ -284,19 +458,6 @@ app.add_handler(
 app.add_handler(
     CommandHandler("delnote", delnote)
 )
-
-# =========================
-# SCHEDULER LOOP
-# =========================
-
-async def scheduler_loop():
-
-    while True:
-
-        await check_tasks()
-
-        await asyncio.sleep(30)
-
 
 # =========================
 # MAIN
@@ -310,14 +471,9 @@ async def main():
         scheduler_loop()
     )
 
-    await app.initialize()
-
-    await app.start()
-
     await app.run_polling(
         drop_pending_updates=True
     )
-
 
 # =========================
 # START BOT
