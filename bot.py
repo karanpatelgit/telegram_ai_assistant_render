@@ -1,3 +1,7 @@
+import sys
+import traceback
+print("⚙️  bot.py starting — Python", sys.version, flush=True)
+
 import os
 import asyncio
 import logging
@@ -393,58 +397,71 @@ async def quick_capture(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ════════════════════════════════════════════════════════════
 
 def main():
-    app = (
-        Application.builder()
-        .token(TOKEN)
-        .post_init(post_init)
-        .build()
-    )
+    try:
+        app = (
+            Application.builder()
+            .token(TOKEN)
+            .post_init(post_init)
+            .build()
+        )
 
-    app.add_error_handler(error_handler)
+        app.add_error_handler(error_handler)
 
-    # ── handlers ──
-    app.add_handler(CommandHandler("start",        start))
-    app.add_handler(CommandHandler("add",          cmd_add))
-    app.add_handler(CommandHandler("today",        cmd_today))
-    app.add_handler(CommandHandler("done",         cmd_done))
-    app.add_handler(CommandHandler("deltask",      cmd_deltask))
-    app.add_handler(CommandHandler("addexam",      cmd_addexam))
-    app.add_handler(CommandHandler("exams",        cmd_exams))
-    app.add_handler(CommandHandler("delexam",      cmd_delexam))
-    app.add_handler(CommandHandler("revise",       cmd_revise))
-    app.add_handler(CommandHandler("revisions",    cmd_revisions))
-    app.add_handler(CommandHandler("note",         cmd_note))
-    app.add_handler(CommandHandler("notes",        cmd_notes))
-    app.add_handler(CommandHandler("find",         cmd_find))
-    app.add_handler(CommandHandler("delnote",      cmd_delnote))
-    app.add_handler(CommandHandler("ask",          cmd_ask))
-    app.add_handler(CommandHandler("explain",      cmd_explain))
-    app.add_handler(CommandHandler("summarize",    cmd_summarize))
-    app.add_handler(CommandHandler("decide",       cmd_decide))
-    app.add_handler(CommandHandler("studyplan",    cmd_studyplan))
-    app.add_handler(CommandHandler("idea",         cmd_idea))
-    app.add_handler(CommandHandler("caption",      cmd_caption))
-    app.add_handler(CommandHandler("savecontent",  cmd_savecontent))
-    app.add_handler(CommandHandler("content",      cmd_content))
-    app.add_handler(CommandHandler("inbox",        cmd_inbox))
-    app.add_handler(CommandHandler("done_inbox",   cmd_done_inbox))
-    app.add_handler(CommandHandler("remember",     cmd_remember))
-    app.add_handler(CommandHandler("memory",       cmd_memory))
-    app.add_handler(CommandHandler("stats",        cmd_stats))
+        # ── handlers ──
+        app.add_handler(CommandHandler("start",        start))
+        app.add_handler(CommandHandler("add",          cmd_add))
+        app.add_handler(CommandHandler("today",        cmd_today))
+        app.add_handler(CommandHandler("done",         cmd_done))
+        app.add_handler(CommandHandler("deltask",      cmd_deltask))
+        app.add_handler(CommandHandler("addexam",      cmd_addexam))
+        app.add_handler(CommandHandler("exams",        cmd_exams))
+        app.add_handler(CommandHandler("delexam",      cmd_delexam))
+        app.add_handler(CommandHandler("revise",       cmd_revise))
+        app.add_handler(CommandHandler("revisions",    cmd_revisions))
+        app.add_handler(CommandHandler("note",         cmd_note))
+        app.add_handler(CommandHandler("notes",        cmd_notes))
+        app.add_handler(CommandHandler("find",         cmd_find))
+        app.add_handler(CommandHandler("delnote",      cmd_delnote))
+        app.add_handler(CommandHandler("ask",          cmd_ask))
+        app.add_handler(CommandHandler("explain",      cmd_explain))
+        app.add_handler(CommandHandler("summarize",    cmd_summarize))
+        app.add_handler(CommandHandler("decide",       cmd_decide))
+        app.add_handler(CommandHandler("studyplan",    cmd_studyplan))
+        app.add_handler(CommandHandler("idea",         cmd_idea))
+        app.add_handler(CommandHandler("caption",      cmd_caption))
+        app.add_handler(CommandHandler("savecontent",  cmd_savecontent))
+        app.add_handler(CommandHandler("content",      cmd_content))
+        app.add_handler(CommandHandler("inbox",        cmd_inbox))
+        app.add_handler(CommandHandler("done_inbox",   cmd_done_inbox))
+        app.add_handler(CommandHandler("remember",     cmd_remember))
+        app.add_handler(CommandHandler("memory",       cmd_memory))
+        app.add_handler(CommandHandler("stats",        cmd_stats))
 
-    # plain text → quick capture
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, quick_capture))
+        # plain text → quick capture
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, quick_capture))
 
-    # ── scheduled jobs ──
-    jq = app.job_queue
-    jq.run_repeating(check_tasks,          interval=60,  first=10)
-    jq.run_repeating(check_revisions,      interval=3600, first=30)
-    jq.run_repeating(check_exam_countdown, interval=3600, first=60)
-    jq.run_daily(morning_briefing, time=datetime.strptime("07:00", "%H:%M").time().replace(tzinfo=ist))
-    jq.run_daily(night_summary,    time=datetime.strptime("22:00", "%H:%M").time().replace(tzinfo=ist))
+        # ── scheduled jobs ──
+        jq = app.job_queue
+        jq.run_repeating(check_tasks,          interval=60,  first=10)
+        jq.run_repeating(check_revisions,      interval=3600, first=30)
+        jq.run_repeating(check_exam_countdown, interval=3600, first=60)
+        jq.run_daily(morning_briefing, time=datetime.strptime("07:00", "%H:%M").time().replace(tzinfo=ist))
+        jq.run_daily(night_summary,    time=datetime.strptime("22:00", "%H:%M").time().replace(tzinfo=ist))
 
-    print("🚀 AI Life OS Bot Running...")
-    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+        print("🚀 AI Life OS Bot Running...", flush=True)
+        app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+
+    except Exception as e:
+        print("❌ FATAL ERROR inside main():", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        sys.stdout.flush()
+        sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print("❌ FATAL ERROR in __main__:", e, flush=True)
+        traceback.print_exc(file=sys.stdout)
+        sys.stdout.flush()
+        sys.exit(1)
