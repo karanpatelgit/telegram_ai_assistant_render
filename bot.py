@@ -27,16 +27,14 @@ from database import (
     set_memory, get_memory, get_all_memory,
     get_analytics_summary, log_analytics
 )
-
-from scheduler import (
-    check_tasks, check_revisions, check_exam_countdown,
-    morning_briefing, night_summary
-)
 from ai import (
     ask_anything, explain_simple, summarize_text,
     decision_helper, viral_ideas, generate_caption,
-    study_plan, motivation_line, chat_with_history ,
-    parse_natural_task 
+    study_plan, motivation_line
+)
+from scheduler import (
+    check_tasks, check_revisions, check_exam_countdown,
+    morning_briefing, night_summary
 )
 # stores conversation history per user
 conversation_history = {}
@@ -356,35 +354,32 @@ async def cmd_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /ask your question")
         return
 
+    # get or create history for this user
     if user_id not in conversation_history:
         conversation_history[user_id] = []
 
+    # add user message to history
     conversation_history[user_id].append({
         "role": "user",
         "content": question
     })
 
+    # keep only last 10 messages (5 exchanges) to avoid token limits
     if len(conversation_history[user_id]) > 10:
         conversation_history[user_id] = conversation_history[user_id][-10:]
 
-    thinking_msg = await update.message.reply_text("🤔 Thinking...")
+    await update.message.reply_text("🤔 Thinking...")
 
-    try:
-        loop = asyncio.get_event_loop()
-        reply = await asyncio.wait_for(
-            loop.run_in_executor(None, chat_with_history, conversation_history[user_id]),
-            timeout=25
-        )
-    except asyncio.TimeoutError:
-        reply = "❌ Took too long. Try again."
+    reply = chat_with_history(conversation_history[user_id])
 
+    # add assistant reply to history
     conversation_history[user_id].append({
         "role": "assistant",
         "content": reply
     })
 
     log_analytics("ai_ask")
-    await thinking_msg.edit_text(f"🤖 {reply}")
+    await update.message.reply_text(f"🤖 {reply}")
 
 async def cmd_explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     topic = update.message.text.replace("/explain", "").strip()
@@ -514,59 +509,15 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"• {s[0]}: {s[1]}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
-# ── QUICK CAPTURE (any plain text → inbox with pahrse natural language version) ───────────────────
+# ── QUICK CAPTURE (any plain text → inbox) ───────────────────
 
 async def quick_capture(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    today = datetime.now(ist).strftime("%Y-%m-%d")
-
-    # keywords that suggest it's a task/reminder
-    task_keywords = [
-        "remind", "reminder", "todo", "task", "exam", "meeting",
-        "study", "submit", "call", "appointment", "at ", "on ",
-        "tomorrow", "tonight", "morning", "evening", "pm", "am"
-    ]
-
-    is_task = any(kw in text.lower() for kw in task_keywords)
-
-    if is_task:
-        await update.message.reply_text("🧠 Parsing your task...")
-
-        loop = asyncio.get_event_loop()
-        try:
-            parsed = await asyncio.wait_for(
-                loop.run_in_executor(None, parse_natural_task, text, today),
-                timeout=15
-            )
-        except asyncio.TimeoutError:
-            parsed = {}
-
-        if parsed and "task" in parsed and "date" in parsed:
-            task_name = parsed.get("task", text)
-            task_date = parsed.get("date", today)
-            task_time = parsed.get("time", "09:00")
-            category  = parsed.get("category", "general")
-
-            add_task(task_date, task_name, task_time, category)
-            log_analytics("nl_task_added")
-
-            await update.message.reply_text(
-                f"✅ Task created!\n\n"
-                f"📝 {task_name}\n"
-                f"📅 {task_date}\n"
-                f"⏰ {task_time}\n"
-                f"🏷 {category}\n\n"
-                f"_Use /today to see all tasks_",
-                parse_mode="Markdown"
-            )
-            return
-
-    # not a task → save to inbox as before
+    text = update.message.text
     add_inbox(text)
     await update.message.reply_text(
-        "📥 Saved to inbox!\n_Use /inbox to view & organize_",
-        parse_mode="Markdown"
+        "📥 Captured to inbox!\nUse /inbox to view & organize"
     )
+
 # ════════════════════════════════════════════════════════════
 # MAIN
 # ════════════════════════════════════════════════════════════
